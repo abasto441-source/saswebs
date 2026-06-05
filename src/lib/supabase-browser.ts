@@ -1,0 +1,19 @@
+import { createBrowserClient } from '@supabase/ssr';
+
+// Client-side Supabase client (uses anon key, respects RLS)
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+
+// Singleton for use in client components
+let client: ReturnType<typeof createClient> | null = null;
+
+export function getSupabase() {
+  if (!client) {
+    client = createClient();
+  }
+  return client;
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "b-figma-h",
+    "type": "hero",
+    "version": "1.0.0",
+    "isVisible": true,
+    "styles": {
+      "padding": "py-24",
+      "bgColor": "#bce6ed",
+      "textAlign": "center",
+      "borderRadius": "xl"
+    },
+    "content": {
+      "title": "Digitaliza tu Academia con Celeste LMS",
+      "subtitle": "La infraestructura Odoo-style con CNAME dedicados y sincronización POS local.",
+      "buttonText": "Empezar Auditoría",
+      "buttonLink": "#"
+    }
+  },
+  {
+    "id": "b-figma-f",
+    "type": "columns_layout",
+    "version": "1.0.0",
+    "isVisible": true,
+    "styles": {
+      "padding": "py-16",
+      "bgColor": "#ffffff"
+    },
+    "content": {
+      "col1_title": "Conexión CNAME",
+      "col1_text": "Certificados TLS automáticos gestionados en Cloudflare.",
+      "col2_title": "POS offline-first",
+      "col2_text": "Transacciones guardadas en IndexedDB durante caídas de red.",
+      "col3_title": "Cursos LMS",
+      "col3_text": "Lecciones en video y progress tracking por estudiante."
+    }
+  },
+  {
+    "id": "b-figma-ft",
+    "type": "footer",
+    "version": "1.0.0",
+    "isVisible": true,
+    "styles": {
+      "padding": "py-8",
+      "bgColor": "#111827"
+    },
+    "content": {
+      "copyText": "© 2026 NRAM360 Corporativo. Todos los derechos reservados."
+    }
+  }
+]
