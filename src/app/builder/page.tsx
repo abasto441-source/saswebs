@@ -496,7 +496,7 @@ export default function BuilderPage() {
       </header>
 
       {/* Main workspace splits */}
-      <div className="flex-grow flex w-full overflow-hidden text-slate-800">
+      <div className="flex-grow flex w-full overflow-hidden text-slate-800 dark:text-slate-200">
         
         {/* 2. LEFT SIDEBAR: Drawer of tabs */}
         <aside className="w-80 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] flex flex-col overflow-hidden shrink-0">
@@ -524,7 +524,7 @@ export default function BuilderPage() {
             {/* A. BLOCKS TAB WITH MINIATURES */}
             {activeTab === 'blocks' && (
               <div className="flex flex-col gap-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Arrastra maquetas al lienzo</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Arrastra maquetas al lienzo</span>
                 
                 {[
                   {
@@ -702,7 +702,7 @@ export default function BuilderPage() {
             {/* C. PAGE DIRECTORY */}
             {activeTab === 'pages' && (
               <div className="flex flex-col gap-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Páginas de este sitio</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Páginas de este sitio</span>
                 <div className="flex flex-col gap-2">
                   <div className="px-4 py-2.5 bg-celeste-claro/10 border border-primary-celeste/20 text-primary-celeste rounded-xl text-xs font-bold flex justify-between items-center">
                     <span>/inicio (Página Principal)</span>
@@ -929,7 +929,7 @@ export default function BuilderPage() {
         </main>
 
         {/* 4. RIGHT SIDEBAR: Webflow-style properties inspector */}
-        <aside className="w-80 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] flex flex-col overflow-hidden shrink-0 text-slate-800">
+        <aside className="w-80 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] flex flex-col overflow-hidden shrink-0 text-slate-800 dark:text-slate-200">
           
           <div className="flex border-b border-gray-200 dark:border-gray-800 p-2 gap-1 bg-gray-50/50 dark:bg-black/10">
             {[
@@ -977,7 +977,7 @@ export default function BuilderPage() {
 
                     {selectedBlock.content.title !== undefined && (
                       <div>
-                        <label className="block text-[10px] text-gray-400 mb-1">Título del Bloque</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Título del Bloque</label>
                         <input 
                           type="text" 
                           value={selectedBlock.content.title || ''}
@@ -989,7 +989,7 @@ export default function BuilderPage() {
 
                     {selectedBlock.content.subtitle !== undefined && (
                       <div>
-                        <label className="block text-[10px] text-gray-400 mb-1">Subtítulo / Slogan</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Subtítulo / Slogan</label>
                         <textarea 
                           rows={3}
                           value={selectedBlock.content.subtitle || ''}
@@ -1001,7 +1001,7 @@ export default function BuilderPage() {
 
                     {selectedBlock.content.bodyText !== undefined && (
                       <div>
-                        <label className="block text-[10px] text-gray-400 mb-1">Cuerpo de Texto</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Cuerpo de Texto</label>
                         <textarea 
                           rows={6}
                           value={selectedBlock.content.bodyText || ''}
@@ -1014,7 +1014,7 @@ export default function BuilderPage() {
                     {selectedBlock.content.buttonText !== undefined && (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] text-gray-400 mb-1">Botón Texto</label>
+                          <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Botón Texto</label>
                           <input 
                             type="text" 
                             value={selectedBlock.content.buttonText || ''}
@@ -1023,7 +1023,7 @@ export default function BuilderPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] text-gray-400 mb-1">Botón Enlace</label>
+                          <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Botón Enlace</label>
                           <input 
                             type="text" 
                             value={selectedBlock.content.buttonLink || ''}
@@ -1036,7 +1036,7 @@ export default function BuilderPage() {
 
                     {selectedBlock.content.logo !== undefined && (
                       <div>
-                        <label className="block text-[10px] text-gray-400 mb-1">Logo Header</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Logo Header</label>
                         <input 
                           type="text" 
                           value={selectedBlock.content.logo || ''}
@@ -1048,7 +1048,7 @@ export default function BuilderPage() {
 
                     {selectedBlock.content.copyText !== undefined && (
                       <div>
-                        <label className="block text-[10px] text-gray-400 mb-1">Copyright Footer</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Copyright Footer</label>
                         <input 
                           type="text" 
                           value={selectedBlock.content.copyText || ''}
@@ -1060,7 +1060,7 @@ export default function BuilderPage() {
 
                     {selectedBlock.content.imageUrl !== undefined && (
                       <div>
-                        <label className="block text-[10px] text-gray-400 mb-1">Imagen URL</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Imagen URL</label>
                         <input 
                           type="text" 
                           value={selectedBlock.content.imageUrl || ''}
@@ -1079,7 +1079,7 @@ export default function BuilderPage() {
                     
                     {/* Spacing (Padding) */}
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Espaciado Vertical (Padding)</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Espaciado Vertical (Padding)</label>
                       <select 
                         value={selectedBlock.styles.padding || 'py-16'}
                         onChange={(e) => updateBlockStyles(selectedBlock.id, { padding: e.target.value })}
@@ -1093,7 +1093,7 @@ export default function BuilderPage() {
 
                     {/* Colors */}
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Color Fondo (HEX)</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Color Fondo (HEX)</label>
                       <div className="flex gap-2">
                         <input 
                           type="color" 
@@ -1112,7 +1112,7 @@ export default function BuilderPage() {
 
                     {/* Typography alignments */}
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Alineación del Texto</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Alineación del Texto</label>
                       <div className="grid grid-cols-3 gap-1 bg-slate-50 p-1 rounded-lg">
                         {['left', 'center', 'right'].map(align => (
                           <button
@@ -1128,7 +1128,7 @@ export default function BuilderPage() {
 
                     {/* Borders */}
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Radio de Bordes</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Radio de Bordes</label>
                       <select 
                         value={selectedBlock.styles.borderRadius || 'none'}
                         onChange={(e) => updateBlockStyles(selectedBlock.id, { borderRadius: e.target.value as any })}
@@ -1144,7 +1144,7 @@ export default function BuilderPage() {
 
                     {/* Animations */}
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Animación de Entrada</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Animación de Entrada</label>
                       <select 
                         value={selectedBlock.styles.animation || 'none'}
                         onChange={(e) => updateBlockStyles(selectedBlock.id, { animation: e.target.value as any })}
@@ -1191,7 +1191,7 @@ export default function BuilderPage() {
                     <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SEO y Accesibilidad del Bloque</span>
                     
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Meta Título local</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Meta Título local</label>
                       <input 
                         type="text" 
                         value={selectedBlock.seo?.metaTitle || ''}
@@ -1202,7 +1202,7 @@ export default function BuilderPage() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Meta Descripción local</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Meta Descripción local</label>
                       <textarea 
                         rows={3}
                         value={selectedBlock.seo?.metaDesc || ''}
@@ -1213,7 +1213,7 @@ export default function BuilderPage() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] text-gray-400 mb-1">Alt Text para Imágenes (Accesibilidad)</label>
+                      <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Alt Text para Imágenes (Accesibilidad)</label>
                       <input 
                         type="text" 
                         value={selectedBlock.seo?.imageAlt || ''}
@@ -1235,7 +1235,7 @@ export default function BuilderPage() {
                         <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Mapeador de Capa Dinámica</span>
                         
                         <div>
-                          <label className="block text-[10px] text-gray-400 mb-1">Origen de Datos (SaaS API)</label>
+                          <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Origen de Datos (SaaS API)</label>
                           <select 
                             value={selectedBlock.dynamicSource.api}
                             onChange={(e) => updateBlockDynamicSource(selectedBlock.id, { api: e.target.value as any })}
@@ -1250,7 +1250,7 @@ export default function BuilderPage() {
 
                         {selectedBlock.type === 'cms_collection_grid' && (
                           <div>
-                            <label className="block text-[10px] text-gray-400 mb-1">Colección CMS de Destino</label>
+                            <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Colección CMS de Destino</label>
                             <select 
                               value={selectedBlock.dynamicSource.collectionId || ''}
                               onChange={(e) => updateBlockDynamicSource(selectedBlock.id, { collectionId: e.target.value, endpoint: `/cms/${e.target.value}` })}
@@ -1267,7 +1267,7 @@ export default function BuilderPage() {
 
                         {selectedBlock.type === 'dynamic_product_grid' && (
                           <div>
-                            <label className="block text-[10px] text-gray-400 mb-1">Colección / Categoría de Productos</label>
+                            <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Colección / Categoría de Productos</label>
                             <select 
                               value={selectedBlock.dynamicSource.collectionId || 'all'}
                               onChange={(e) => updateBlockDynamicSource(selectedBlock.id, { collectionId: e.target.value })}
@@ -1284,7 +1284,7 @@ export default function BuilderPage() {
 
 
                         <div>
-                          <label className="block text-[10px] text-gray-400 mb-1">API Endpoint</label>
+                          <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">API Endpoint</label>
                           <input 
                             type="text" 
                             value={selectedBlock.dynamicSource.endpoint}
@@ -1547,7 +1547,7 @@ export default function BuilderPage() {
 
             <form onSubmit={handleExtractTemplate} className="flex flex-col gap-4">
               <div>
-                <label className="block text-[10px] text-gray-400 mb-1">Nombre de la Plantilla</label>
+                <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Nombre de la Plantilla</label>
                 <input 
                   required 
                   type="text" 
@@ -1560,7 +1560,7 @@ export default function BuilderPage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] text-gray-400 mb-1">Categoría</label>
+                  <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Categoría</label>
                   <select 
                     value={extractCategory}
                     onChange={(e) => setExtractCategory(e.target.value as any)}

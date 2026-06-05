@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase-server';
+import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 
 // POST /api/auth/login
@@ -10,9 +10,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email y contraseña requeridos' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = createServerClient();
+    const adminSupabase = createAdminClient();
 
-    // Sign in with Supabase Auth
+    // Sign in with Supabase Auth (this sets the session cookies)
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -25,8 +26,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get user profile with role
-    const { data: profile } = await supabase
+    // Get user profile with role using admin client (bypasses RLS during login transition)
+    const { data: profile } = await adminSupabase
       .from('user_profiles')
       .select('role, tenant_id, name')
       .eq('id', authData.user.id)

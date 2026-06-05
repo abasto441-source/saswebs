@@ -236,6 +236,24 @@ export default function POSPage() {
       const liveProducts = dbAdapter.getProducts();
       
       for (const order of pendingOrders) {
+        // Post to real server if URL env var is present
+        if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          try {
+            await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tenantId: order.tenantId,
+                items: order.items,
+                total: order.total,
+                paymentMethod: order.paymentMethod,
+              })
+            });
+          } catch (err) {
+            console.error('Failed to sync order to Supabase:', err);
+          }
+        }
+
         for (const item of order.items) {
           const liveProd = liveProducts.find(p => p.id === item.productId);
           if (liveProd) {
@@ -319,6 +337,27 @@ export default function POSPage() {
         }
       }
       dbAdapter.saveProducts(liveProducts);
+
+      // Async fetch to process order in real Supabase database if configured
+      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: activeTenant.id,
+            items: cart.map(item => ({
+              productId: item.product.id,
+              name: item.product.name,
+              quantity: item.quantity,
+              price: item.product.price
+            })),
+            total: getCartTotal(),
+            paymentMethod: method,
+            cashTendered: method === 'cash' ? getCartTotal() : undefined,
+            changeGiven: method === 'cash' ? 0 : undefined
+          })
+        }).catch(err => console.error('Error posting order to Supabase:', err));
+      }
     }
 
     // Set printed order to display the thermal receipt modal

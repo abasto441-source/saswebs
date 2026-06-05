@@ -576,12 +576,20 @@ class SupabaseMock {
     }
   }
 
+  // Helper to trigger background table syncing to Supabase
+  private syncTable(key: string, data: any[]) {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      syncTableToSupabase(key, data).catch(err => console.error(`Sync error for ${key}:`, err));
+    }
+  }
+
   getTenants(): Tenant[] {
     return this.getStorage('mock_tenants', INITIAL_TENANTS);
   }
 
   saveTenants(tenants: Tenant[]) {
     this.setStorage('mock_tenants', tenants);
+    this.syncTable('tenants', tenants);
   }
 
   getActiveTenant(): Tenant {
@@ -600,6 +608,7 @@ class SupabaseMock {
 
   saveCourses(courses: Course[]) {
     this.setStorage('mock_courses', courses);
+    this.syncTable('courses', courses);
   }
 
   getProducts(): Product[] {
@@ -608,6 +617,7 @@ class SupabaseMock {
 
   saveProducts(products: Product[]) {
     this.setStorage('mock_products', products);
+    this.syncTable('products', products);
   }
 
   getEnrollments(): Enrollment[] {
@@ -616,6 +626,7 @@ class SupabaseMock {
 
   saveEnrollments(enrollments: Enrollment[]) {
     this.setStorage('mock_enrollments', enrollments);
+    this.syncTable('enrollments', enrollments);
   }
 
   getTemplates(): Template[] {
@@ -632,6 +643,7 @@ class SupabaseMock {
 
   savePages(pages: Page[]) {
     this.setStorage('mock_pages', pages);
+    this.syncTable('pages', pages);
   }
 
   getTenantPage(tenantId: string, slug: string): Page | null {
@@ -670,7 +682,6 @@ class SupabaseMock {
     this.setStorage(`mock_global_blocks_${tenantId}`, blocks);
   }
 
-  // System inheritance cloner (instantiation)
   instantiateTemplate(templateId: string, tenantId: string, slug: string): Page {
     const templates = this.getTemplates();
     const tpl = templates.find(t => t.id === templateId);
@@ -678,7 +689,6 @@ class SupabaseMock {
 
     const sourceBlocks = JSON.parse(tpl.structureJson);
     
-    // System Inheritance: Generate clean new IDs for each block clone to prevent side-effects
     const clonedBlocks = sourceBlocks.map((b: any) => ({
       ...b,
       id: `block-${Math.random().toString(36).substr(2, 9)}`,
@@ -729,15 +739,16 @@ class SupabaseMock {
 
   saveReservations(reservations: Reservation[]) {
     this.setStorage('mock_reservations', reservations);
+    this.syncTable('reservations', reservations);
   }
 
-  // Enterprise DB Methods
   getCollections(): CMSCollection[] {
     return this.getStorage('mock_collections', INITIAL_COLLECTIONS);
   }
 
   saveCollections(col: CMSCollection[]) {
     this.setStorage('mock_collections', col);
+    this.syncTable('cms_collections', col);
   }
 
   getCmsItems(): CMSItem[] {
@@ -746,6 +757,7 @@ class SupabaseMock {
 
   saveCmsItems(items: CMSItem[]) {
     this.setStorage('mock_cms_items', items);
+    this.syncTable('cms_items', items);
   }
 
   getWorkflows(): AutomationWorkflow[] {
@@ -754,6 +766,7 @@ class SupabaseMock {
 
   saveWorkflows(wf: AutomationWorkflow[]) {
     this.setStorage('mock_workflows', wf);
+    this.syncTable('workflows', wf);
   }
 
   getAuditLogs(): AuditLog[] {
@@ -762,6 +775,7 @@ class SupabaseMock {
 
   saveAuditLogs(logs: AuditLog[]) {
     this.setStorage('mock_audit_logs', logs);
+    this.syncTable('audit_logs', logs);
   }
 
   addAuditLog(tenantId: string, userId: string, action: string, details: string) {
@@ -815,9 +829,9 @@ class SupabaseMock {
 
   saveApiKeys(keys: ApiKey[]) {
     this.setStorage('mock_api_keys', keys);
+    this.syncTable('api_keys', keys);
   }
 
-  // Git versioning history helpers
   getGitCommits(tenantId: string): GitCommit[] {
     const defaultCommits: GitCommit[] = [
       {
@@ -839,7 +853,6 @@ class SupabaseMock {
     this.setStorage(`mock_git_commits_${tenantId}`, commits);
   }
 
-  // Multi-sucursal franchise helpers
   getBranchLocations(tenantId: string): BranchLocation[] {
     const defaultBranches: BranchLocation[] = [
       { id: 'br-central', tenantId, name: 'Sede Central Celeste', address: 'Av. Las Condes 9281, Santiago', mrr: 15400, isActive: true },
@@ -851,6 +864,7 @@ class SupabaseMock {
 
   saveBranchLocations(tenantId: string, branches: BranchLocation[]) {
     this.setStorage(`mock_branch_locations_${tenantId}`, branches);
+    this.syncTable('branch_locations', branches);
   }
 
   getBranchInventory(branchId: string): BranchInventory[] {
@@ -866,9 +880,9 @@ class SupabaseMock {
 
   saveBranchInventory(branchId: string, inventory: BranchInventory[]) {
     this.setStorage(`mock_branch_inventory_${branchId}`, inventory);
+    this.syncTable('branch_inventory', inventory);
   }
 
-  // Edge telemetry metrics helpers
   getTelemetryMetric(tenantId: string): TelemetryMetric {
     const defaultMetric: TelemetryMetric = {
       id: 'tel-' + tenantId,
@@ -888,4 +902,346 @@ class SupabaseMock {
 }
 
 export const dbAdapter = new SupabaseMock();
+
+// Field mappings between local state and Supabase tables
+const PRODUCT_MAP = {
+  id: 'id',
+  name: 'name',
+  price: 'price',
+  stock: 'stock',
+  barcode: 'barcode',
+  imageUrl: 'image_url',
+  category: 'category'
+};
+
+const COURSE_MAP = {
+  id: 'id',
+  title: 'title',
+  description: 'description',
+  thumbnail: 'thumbnail',
+  lessonsCount: 'lessons_count',
+  instructorName: 'instructor_name',
+  price: 'price'
+};
+
+const PAGE_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  slug: 'slug',
+  title: 'title',
+  isPublished: 'is_published',
+  structureJson: 'structure_json'
+};
+
+const CMS_COLLECTION_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  slug: 'slug',
+  fields: 'fields'
+};
+
+const CMS_ITEM_MAP = {
+  id: 'id',
+  collectionId: 'collection_id',
+  data: 'data',
+  createdAt: 'created_at'
+};
+
+const RESERVATION_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  customerName: 'customer_name',
+  email: 'email',
+  dateTime: 'date_time',
+  serviceName: 'service_name'
+};
+
+const AUDIT_LOG_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  userId: 'user_id',
+  action: 'action',
+  details: 'details',
+  ip: 'ip',
+  createdAt: 'created_at'
+};
+
+const WORKFLOW_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  trigger: 'trigger_event',
+  actions: 'actions',
+  active: 'active'
+};
+
+const BRANCH_LOCATION_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  address: 'address',
+  mrr: 'mrr',
+  isActive: 'is_active'
+};
+
+const BRANCH_INVENTORY_MAP = {
+  id: 'id',
+  branchId: 'branch_id',
+  productId: 'product_id',
+  stock: 'stock'
+};
+
+const API_KEY_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  publicKey: 'public_key',
+  secretKey: 'secret_key',
+  webhooks: 'webhooks'
+};
+
+const TENANT_MAP = {
+  id: 'id',
+  name: 'name',
+  subdomain: 'subdomain',
+  customDomain: 'custom_domain',
+  plan: 'plan',
+  status: 'status',
+  isLmsEnabled: 'is_lms_enabled',
+  isEcommerceEnabled: 'is_ecommerce_enabled',
+  isPosEnabled: 'is_pos_enabled',
+  isReservasEnabled: 'is_reservas_enabled',
+  themeDarkMode: 'theme_dark_mode',
+  stripePublicKey: 'stripe_public_key',
+  favicon: 'favicon',
+  googleAnalyticsId: 'google_analytics_id',
+  expirationDate: 'expiration_date'
+};
+
+const ENROLLMENT_MAP = {
+  id: 'id',
+  courseId: 'course_id',
+  progress: 'progress',
+  lessonsCompleted: 'lessons_completed'
+};
+
+function mapToDb(obj: any, map: Record<string, string>, extra: any = {}) {
+  const result: any = { ...extra };
+  for (const [localKey, dbKey] of Object.entries(map)) {
+    if (obj[localKey] !== undefined) {
+      result[dbKey] = obj[localKey];
+    }
+  }
+  return result;
+}
+
+function mapToLocal(dbObj: any, map: Record<string, string>) {
+  const result: any = {};
+  for (const [localKey, dbKey] of Object.entries(map)) {
+    if (dbObj[dbKey] !== undefined) {
+      result[localKey] = dbObj[dbKey];
+    }
+  }
+  return result;
+}
+
+// Background sync functions to remote Supabase
+async function syncTableToSupabase(tableKey: string, localItems: any[]) {
+  if (typeof window === 'undefined') return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
+  const MAPS: Record<string, any> = {
+    products: { dbTable: 'products', map: PRODUCT_MAP, tenantIdField: 'tenant_id' },
+    courses: { dbTable: 'courses', map: COURSE_MAP, tenantIdField: 'tenant_id' },
+    pages: { dbTable: 'pages', map: PAGE_MAP, tenantIdField: 'tenant_id' },
+    cms_collections: { dbTable: 'cms_collections', map: CMS_COLLECTION_MAP, tenantIdField: 'tenant_id' },
+    cms_items: { dbTable: 'cms_items', map: CMS_ITEM_MAP, tenantIdField: 'collection_id' },
+    reservations: { dbTable: 'reservations', map: RESERVATION_MAP, tenantIdField: 'tenant_id' },
+    audit_logs: { dbTable: 'audit_logs', map: AUDIT_LOG_MAP, tenantIdField: 'tenant_id' },
+    workflows: { dbTable: 'automation_workflows', map: WORKFLOW_MAP, tenantIdField: 'tenant_id' },
+    branch_locations: { dbTable: 'branch_locations', map: BRANCH_LOCATION_MAP, tenantIdField: 'tenant_id' },
+    branch_inventory: { dbTable: 'branch_inventory', map: BRANCH_INVENTORY_MAP, tenantIdField: 'branch_id' },
+    api_keys: { dbTable: 'api_keys', map: API_KEY_MAP, tenantIdField: 'tenant_id' },
+    tenants: { dbTable: 'tenants', map: TENANT_MAP, tenantIdField: 'id' },
+    enrollments: { dbTable: 'enrollments', map: ENROLLMENT_MAP, tenantIdField: 'user_id' }
+  };
+
+  const config = MAPS[tableKey];
+  if (!config) return;
+
+  try {
+    const { getSupabase } = await import('@/lib/supabase-browser');
+    const supabase = getSupabase();
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const tenantId = dbAdapter.getActiveTenant().id;
+
+    const dbRows = localItems.map(item => {
+      let extra: any = {};
+      if (config.tenantIdField === 'tenant_id') {
+        extra.tenant_id = tenantId;
+      } else if (config.tenantIdField === 'user_id') {
+        extra.user_id = session.user.id;
+      }
+      return mapToDb(item, config.map, extra);
+    });
+
+    if (dbRows.length > 0) {
+      const { error: upsertError } = await supabase.from(config.dbTable).upsert(dbRows);
+      if (upsertError) console.error(`Error upserting ${config.dbTable}`, upsertError);
+    }
+
+    // Handle removals
+    let query = supabase.from(config.dbTable).select('id');
+    if (config.tenantIdField === 'tenant_id') {
+      query = query.eq('tenant_id', tenantId);
+    } else if (config.tenantIdField === 'collection_id' && tableKey === 'cms_items') {
+      const collections = dbAdapter.getCollections().filter(c => c.tenantId === tenantId);
+      const collectionIds = collections.map(c => c.id);
+      query = query.in('collection_id', collectionIds);
+    } else if (config.tenantIdField === 'branch_id' && tableKey === 'branch_inventory') {
+      const branches = dbAdapter.getBranchLocations(tenantId);
+      const branchIds = branches.map(b => b.id);
+      query = query.in('branch_id', branchIds);
+    } else if (config.tenantIdField === 'user_id') {
+      query = query.eq('user_id', session.user.id);
+    } else if (config.tenantIdField === 'id' && tableKey === 'tenants') {
+      query = query.eq('id', tenantId);
+    }
+
+    const { data: dbItems, error: selectError } = await query;
+    if (!selectError && dbItems) {
+      const localIds = new Set(localItems.map(item => item.id));
+      const idsToDelete = dbItems.filter(item => !localIds.has(item.id)).map(item => item.id);
+
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase.from(config.dbTable).delete().in('id', idsToDelete);
+        if (deleteError) console.error(`Error deleting from ${config.dbTable}`, deleteError);
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to sync table ${tableKey}:`, err);
+  }
+}
+
+async function syncFromSupabase() {
+  if (typeof window === 'undefined') return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
+  try {
+    const { getSupabase } = await import('@/lib/supabase-browser');
+    const supabase = getSupabase();
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const activeTenantId = dbAdapter.getActiveTenant().id;
+
+    // Sync tenants
+    const { data: dbTenants } = await supabase.from('tenants').select('*');
+    if (dbTenants) {
+      const localTenants = dbTenants.map(t => mapToLocal(t, TENANT_MAP));
+      localStorage.setItem('mock_tenants', JSON.stringify(localTenants));
+    }
+
+    // Sync products
+    const { data: dbProducts } = await supabase.from('products').select('*').eq('tenant_id', activeTenantId);
+    if (dbProducts) {
+      localStorage.setItem('mock_products', JSON.stringify(dbProducts.map(p => mapToLocal(p, PRODUCT_MAP))));
+    }
+
+    // Sync courses
+    const { data: dbCourses } = await supabase.from('courses').select('*').eq('tenant_id', activeTenantId);
+    if (dbCourses) {
+      localStorage.setItem('mock_courses', JSON.stringify(dbCourses.map(c => mapToLocal(c, COURSE_MAP))));
+    }
+
+    // Sync pages
+    const { data: dbPages } = await supabase.from('pages').select('*').eq('tenant_id', activeTenantId);
+    if (dbPages) {
+      localStorage.setItem('mock_pages', JSON.stringify(dbPages.map(p => mapToLocal(p, PAGE_MAP))));
+    }
+
+    // Sync cms_collections
+    const { data: dbCollections } = await supabase.from('cms_collections').select('*').eq('tenant_id', activeTenantId);
+    if (dbCollections) {
+      const collections = dbCollections.map(c => mapToLocal(c, CMS_COLLECTION_MAP));
+      localStorage.setItem('mock_collections', JSON.stringify(collections));
+
+      const collectionIds = collections.map(c => c.id);
+      if (collectionIds.length > 0) {
+        const { data: dbItems } = await supabase.from('cms_items').select('*').in('collection_id', collectionIds);
+        if (dbItems) {
+          localStorage.setItem('mock_cms_items', JSON.stringify(dbItems.map(i => mapToLocal(i, CMS_ITEM_MAP))));
+        }
+      }
+    }
+
+    // Sync reservations
+    const { data: dbReservations } = await supabase.from('reservations').select('*').eq('tenant_id', activeTenantId);
+    if (dbReservations) {
+      localStorage.setItem('mock_reservations', JSON.stringify(dbReservations.map(r => mapToLocal(r, RESERVATION_MAP))));
+    }
+
+    // Sync audit_logs
+    const { data: dbLogs } = await supabase.from('audit_logs').select('*').eq('tenant_id', activeTenantId).order('created_at', { ascending: false });
+    if (dbLogs) {
+      localStorage.setItem('mock_audit_logs', JSON.stringify(dbLogs.map(l => mapToLocal(l, AUDIT_LOG_MAP))));
+    }
+
+    // Sync automation_workflows
+    const { data: dbWorkflows } = await supabase.from('automation_workflows').select('*').eq('tenant_id', activeTenantId);
+    if (dbWorkflows) {
+      localStorage.setItem('mock_workflows', JSON.stringify(dbWorkflows.map(w => mapToLocal(w, WORKFLOW_MAP))));
+    }
+
+    // Sync branch_locations
+    const { data: dbBranches } = await supabase.from('branch_locations').select('*').eq('tenant_id', activeTenantId);
+    if (dbBranches) {
+      localStorage.setItem(`mock_branch_locations_${activeTenantId}`, JSON.stringify(dbBranches.map(b => mapToLocal(b, BRANCH_LOCATION_MAP))));
+      
+      for (const branch of dbBranches) {
+        const { data: dbBranchInv } = await supabase.from('branch_inventory').select('*').eq('branch_id', branch.id);
+        if (dbBranchInv) {
+          localStorage.setItem(`mock_branch_inventory_${branch.id}`, JSON.stringify(dbBranchInv.map(bi => mapToLocal(bi, BRANCH_INVENTORY_MAP))));
+        }
+      }
+    }
+
+    // Sync api_keys
+    const { data: dbApiKeys } = await supabase.from('api_keys').select('*').eq('tenant_id', activeTenantId);
+    if (dbApiKeys) {
+      localStorage.setItem('mock_api_keys', JSON.stringify(dbApiKeys.map(k => mapToLocal(k, API_KEY_MAP))));
+    }
+
+    // Sync enrollments
+    const { data: dbEnrollments } = await supabase.from('enrollments').select('*').eq('user_id', session.user.id);
+    if (dbEnrollments) {
+      localStorage.setItem('mock_enrollments', JSON.stringify(dbEnrollments.map(e => mapToLocal(e, ENROLLMENT_MAP))));
+    }
+
+    // Dispatch reload event to all client listeners
+    window.dispatchEvent(new CustomEvent('db-sync-complete'));
+
+  } catch (err) {
+    console.error('Failed to sync from Supabase:', err);
+  }
+}
+
+// Start auth state listener and initial sync on client load
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  import('@/lib/supabase-browser').then(({ getSupabase }) => {
+    const supabase = getSupabase();
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        syncFromSupabase();
+      }
+    });
+    syncFromSupabase();
+  });
+}
+
 export default dbAdapter;
