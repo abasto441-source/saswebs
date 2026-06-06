@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { NextResponse } from 'next/server';
 
 // POST /api/stripe/checkout — Create Stripe Checkout session
