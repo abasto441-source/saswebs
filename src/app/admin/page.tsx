@@ -752,12 +752,12 @@ export default function AdminPage() {
                     <div className="border-t border-slate-100 pt-3 mt-4 flex flex-col gap-2">
                       <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Módulos requeridos:</span>
                       <div className="flex flex-wrap gap-1">
-                        {tpl.requiredModules.map((mod, i) => (
+                        {tpl.requiredModules?.map((mod, i) => (
                           <span key={i} className="px-2 py-0.5 bg-red-50 border border-red-100 text-red-700 rounded text-[9px] font-bold">
                             {mod === 'isLmsEnabled' ? 'Academia LMS' : mod === 'isEcommerceEnabled' ? 'E-Commerce' : 'POS'}
                           </span>
                         ))}
-                        {tpl.requiredModules.length === 0 && (
+                        {(tpl.requiredModules?.length || 0) === 0 && (
                           <span className="text-[9px] text-slate-400 font-bold">Sin dependencias</span>
                         )}
                       </div>
