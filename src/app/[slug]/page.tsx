@@ -68,6 +68,7 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
         if (!resolved) {
           resolved = dbAdapter.getActiveTenant();
         }
+        if (!resolved) return;
         setActiveTenant(resolved);
 
         // Set diagnostics parameters based on resolving location

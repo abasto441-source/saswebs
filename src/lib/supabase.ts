@@ -603,7 +603,7 @@ class SupabaseMock {
   getActiveTenant(): Tenant {
     const tenants = this.getTenants();
     const activeId = this.getStorage('mock_active_tenant_id', 't-celeste');
-    return tenants.find(t => t.id === activeId) || tenants[0];
+    return tenants.find(t => t.id === activeId) || tenants[0] || INITIAL_TENANTS[0];
   }
 
   setActiveTenantId(id: string) {
