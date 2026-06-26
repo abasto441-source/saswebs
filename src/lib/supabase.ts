@@ -571,7 +571,10 @@ class SupabaseMock {
     try {
       return JSON.parse(item) as T;
     } catch (e) {
-      return item as unknown as T;
+      if (typeof defaultVal === 'string') {
+        return item as unknown as T;
+      }
+      return defaultVal;
     }
   }
 
