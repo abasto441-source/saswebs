@@ -138,6 +138,12 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
     }
   }, [courses]);
 
+  useEffect(() => {
+    if (cliTerminalEndRef.current) {
+      cliTerminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [cliHistory]);
+
   if (!isClient || !slug) return null;
 
   const activeCourse = courses.find(c => c.id === activeCourseId);
@@ -150,12 +156,6 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
     { title: 'Lección 3: Server Actions y Mutations', duration: '22 mins', video: 'https://assets.mixkit.co/videos/preview/mixkit-coding-on-a-laptop-42171-large.mp4' },
     { title: 'Lección 4: Integración Supabase Postgres RLS', duration: '25 mins', video: 'https://assets.mixkit.co/videos/preview/mixkit-hand-of-a-developer-typing-on-a-keyboard-40437-large.mp4' }
   ].slice(0, activeCourse.lessonsCount) : [];
-
-  useEffect(() => {
-    if (cliTerminalEndRef.current) {
-      cliTerminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [cliHistory]);
 
   const handleCliSubmit = (e: React.FormEvent) => {
     e.preventDefault();
