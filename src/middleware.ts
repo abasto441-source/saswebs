@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server';
+import { createServerClient as createSSR } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If no Supabase env vars (local dev without credentials), skip auth
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
     return NextResponse.next();
   }
 
@@ -33,7 +33,6 @@ export async function middleware(request: NextRequest) {
   });
 
   try {
-    const { createServerClient: createSSR } = await import('@supabase/ssr');
     const supabase = createSSR(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

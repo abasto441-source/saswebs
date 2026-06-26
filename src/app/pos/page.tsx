@@ -237,7 +237,7 @@ export default function POSPage() {
       
       for (const order of pendingOrders) {
         // Post to real server if URL env var is present
-        if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
           try {
             await fetch('/api/orders', {
               method: 'POST',
@@ -339,7 +339,7 @@ export default function POSPage() {
       dbAdapter.saveProducts(liveProducts);
 
       // Async fetch to process order in real Supabase database if configured
-      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
         fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

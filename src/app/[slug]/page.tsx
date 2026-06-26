@@ -52,43 +52,54 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
   // Resolve tenant and initialize page
   useEffect(() => {
     setIsClient(true);
-    params.then(unwrapped => {
-      setSlug(unwrapped.slug);
-      
-      // Resolve tenant by subdomain/custom domain or fallback to active tenant
-      const tenants = dbAdapter.getTenants();
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      let resolved = tenants.find(t => t.customDomain === hostname || t.subdomain === hostname);
-      if (!resolved) {
-        resolved = dbAdapter.getActiveTenant();
-      }
-      setActiveTenant(resolved);
 
-      // Set diagnostics parameters based on resolving location
-      const loc = resolved.subdomain === 'tecnobo' 
-        ? 'MIA-02 (Miami, USA)' 
-        : 'SCL-01 (Santiago, Chile)';
-      const ip = resolved.subdomain === 'tecnobo'
-        ? '104.26.12.31'
-        : '172.67.74.120';
-      setDiagnosticsMetric({
-        rayId: 'cf-' + Math.random().toString(36).substr(2, 14),
-        execTime: resolved.subdomain === 'tecnobo' ? 22 : 14,
-        edgeIp: ip,
-        nodeLocation: loc
-      });
+    const resolveParams = async () => {
+      try {
+        const resolvedParams = await params;
+        const targetSlug = resolvedParams?.slug;
+        if (!targetSlug) return;
 
-      const customerAccounts = dbAdapter.getCustomerAccounts();
-      const activeCust = customerAccounts.find(c => c.tenantId === resolved.id) || customerAccounts[0];
-      setCustomer(activeCust || null);
+        setSlug(targetSlug);
 
-      const page = dbAdapter.getTenantPage(resolved.id, unwrapped.slug);
-      if (page) {
-        initPage(page.id, page.slug, page.title, page.isPublished, {
-          blocks: JSON.parse(page.structureJson)
+        // Resolve tenant by subdomain/custom domain or fallback to active tenant
+        const tenants = dbAdapter.getTenants();
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+        let resolved = tenants.find(t => t.customDomain === hostname || t.subdomain === hostname);
+        if (!resolved) {
+          resolved = dbAdapter.getActiveTenant();
+        }
+        setActiveTenant(resolved);
+
+        // Set diagnostics parameters based on resolving location
+        const loc = resolved.subdomain === 'tecnobo' 
+          ? 'MIA-02 (Miami, USA)' 
+          : 'SCL-01 (Santiago, Chile)';
+        const ip = resolved.subdomain === 'tecnobo'
+          ? '104.26.12.31'
+          : '172.67.74.120';
+        setDiagnosticsMetric({
+          rayId: 'cf-' + Math.random().toString(36).substr(2, 14),
+          execTime: resolved.subdomain === 'tecnobo' ? 22 : 14,
+          edgeIp: ip,
+          nodeLocation: loc
         });
+
+        const customerAccounts = dbAdapter.getCustomerAccounts();
+        const activeCust = customerAccounts.find(c => c.tenantId === resolved.id) || customerAccounts[0];
+        setCustomer(activeCust || null);
+
+        const page = dbAdapter.getTenantPage(resolved.id, targetSlug);
+        if (page) {
+          initPage(page.id, page.slug, page.title, page.isPublished, {
+            blocks: JSON.parse(page.structureJson)
+          });
+        }
+      } catch (err) {
+        console.error('Error resolving params:', err);
       }
-    });
+    };
+
+    resolveParams();
 
     setCourses(dbAdapter.getCourses());
     setEnrollments(dbAdapter.getEnrollments());

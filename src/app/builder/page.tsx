@@ -225,37 +225,37 @@ export default function BuilderPage() {
     alert(`Estructura extraída y guardada como plantilla global: "${extractName}"`);
   };
 
-  // Cloudflare Workers AI simulator
-  const handleRunAiSimulator = () => {
+  // Cloudflare Workers / Gemini AI for block fields
+  const handleRunAiSimulator = async () => {
     if (!aiPrompt || !selectedBlockId) return;
     setAiGenerating(true);
     setAiGeneratedText('');
 
-    setTimeout(() => {
-      // Simulate generating content
-      let generated = '';
+    try {
+      const selectedBlock = structure.blocks.find(b => b.id === selectedBlockId);
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          mode: 'block',
+          blockType: selectedBlock?.type,
+          field: aiFieldTarget
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al generar texto');
+
+      const generated = data.text || '';
+
       if (aiFieldTarget === 'imageUrl') {
-        const images = [
-          'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800',
-          'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800',
-          'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800',
-          'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800'
-        ];
-        generated = images[Math.floor(Math.random() * images.length)];
         updateBlockContent(selectedBlockId, { imageUrl: generated });
         setAiGenerating(false);
         return;
       }
 
-      const responses = [
-        'Aumenta tu eficiencia de caja con nuestro POS offline-first.',
-        'La Academia LMS que conecta estudiantes y maestros a gran escala.',
-        'Sincronización de base de datos local robusta con IndexedDB.',
-        'Soluciones corporativas de tecnología celular y CNAME dedicados.'
-      ];
-      generated = responses[Math.floor(Math.random() * responses.length)] + ` (${aiPrompt})`;
-      
-      // Simulate typing text stream
+      // Simulate typing text stream (typing effect)
       let currentIdx = 0;
       const interval = setInterval(() => {
         if (currentIdx <= generated.length) {
@@ -266,9 +266,13 @@ export default function BuilderPage() {
           clearInterval(interval);
           setAiGenerating(false);
         }
-      }, 40);
+      }, 30);
 
-    }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error de generación con IA: ' + err.message);
+      setAiGenerating(false);
+    }
   };
 
   const handleGitCommit = (e: React.FormEvent) => {
@@ -303,77 +307,29 @@ export default function BuilderPage() {
     }
   };
 
-  const handleRunFullSiteAi = () => {
+  const handleRunFullSiteAi = async () => {
     if (!fullSitePrompt || !activeTenant) return;
     setFullSiteGenerating(true);
-    setTimeout(() => {
-      const promptLower = fullSitePrompt.toLowerCase();
-      let themeColor = '#bce6ed';
-      let title = 'Servicios y Consultoría Celeste';
-      let subtitle = 'Infraestructura robusta con dominios CNAME y automatización de procesos.';
-      let secondaryBlockType: Block['type'] = 'cms_collection_grid';
-      let secondaryTitle = 'Artículos de Prensa Recientes';
 
-      if (promptLower.includes('dental') || promptLower.includes('dentista') || promptLower.includes('médica') || promptLower.includes('médico') || promptLower.includes('salud')) {
-        themeColor = '#3b82f6';
-        title = 'Clínica Odontológica DentalCare';
-        subtitle = 'Cuidado bucal premium con tecnología de punta y reserva de turnos en línea.';
-        secondaryBlockType = 'reservations_calendar';
-        secondaryTitle = 'Agenda tu Cita Médica';
-      } else if (promptLower.includes('restaurant') || promptLower.includes('restaurante') || promptLower.includes('comida') || promptLower.includes('chef') || promptLower.includes('gourmet')) {
-        themeColor = '#f97316';
-        title = 'Bistró Delicia Gourmet';
-        subtitle = 'Platos de autor preparados con ingredientes frescos de granja locales.';
-        secondaryBlockType = 'cta_banner';
-        secondaryTitle = 'Reserva tu Mesa Online';
-      } else if (promptLower.includes('tienda') || promptLower.includes('ropa') || promptLower.includes('moda') || promptLower.includes('ecommerce') || promptLower.includes('ventas')) {
-        themeColor = '#ec4899';
-        title = 'Boutique Fashion & Co';
-        subtitle = 'Ropa y calzado exclusivo con sincronización de catálogo POS offline.';
-        secondaryBlockType = 'dynamic_product_grid';
-        secondaryTitle = 'Novedades de la Semana';
-      } else if (promptLower.includes('curso') || promptLower.includes('academia') || promptLower.includes('lms') || promptLower.includes('clases')) {
-        themeColor = '#06b6d4';
-        title = 'Academia Virtual Celeste';
-        subtitle = 'Plataforma educativa para aprender desarrollo web, base de datos y Cloud Computing.';
-        secondaryBlockType = 'lms_course_list';
-        secondaryTitle = 'Cursos Virtuales Disponibles';
-      }
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: fullSitePrompt,
+          mode: 'full_site'
+        })
+      });
 
-      const generatedBlocks: Block[] = [
-        {
-          id: 'b-ai-h',
-          type: 'header',
-          version: '1.0.0',
-          isVisible: true,
-          styles: { padding: 'py-4', bgColor: '#ffffff' },
-          content: { logo: `🎓 ${title.split(' ')[0]}`, links: [{ label: 'Inicio', url: '/' }, { label: 'Servicios', url: '#servicios' }] }
-        },
-        {
-          id: 'b-ai-he',
-          type: 'hero',
-          version: '1.0.0',
-          isVisible: true,
-          styles: { padding: 'py-20', bgColor: themeColor, textAlign: 'center', borderRadius: 'xl' },
-          content: { title, subtitle, buttonText: 'Empezar Ahora', buttonLink: '#servicios', imageUrl: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800' }
-        },
-        {
-          id: 'b-ai-sec',
-          type: secondaryBlockType,
-          version: '1.0.0',
-          isVisible: true,
-          styles: { padding: 'py-12', bgColor: '#ffffff', textAlign: 'center' },
-          content: { title: secondaryTitle, subtitle: 'Sincronizado dinámicamente con la base de datos' }
-        },
-        {
-          id: 'b-ai-f',
-          type: 'footer',
-          version: '1.0.0',
-          isVisible: true,
-          styles: { padding: 'py-8', bgColor: '#111827' },
-          content: { copyText: `© 2026 ${title}. Todos los derechos reservados.` }
-        }
-      ];
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al generar sitio completo');
+
+      const generatedBlocks = data.blocks;
+
+      // Find the hero block to extract title/subtitle for SEO
+      const heroBlock = generatedBlocks.find((b: any) => b.type === 'hero');
+      const title = heroBlock?.content?.title || 'Sitio Web Personalizado';
+      const subtitle = heroBlock?.content?.subtitle || 'Diseñado con Inteligencia Artificial';
 
       initPage(pageId || 'p-ai', slug, title, isPublished, {
         blocks: generatedBlocks
@@ -383,6 +339,7 @@ export default function BuilderPage() {
         structureJson: JSON.stringify(generatedBlocks)
       });
 
+      // Update SEO
       updateBlockSeo('inicio', {
         metaTitle: `${title} | Sitio Web Generado por IA`,
         metaDesc: subtitle
@@ -392,7 +349,12 @@ export default function BuilderPage() {
       setFullSiteGenerating(false);
       setFullSitePrompt('');
       alert('¡Sitio Web completo generado y cargado con éxito en el lienzo!');
-    }, 2000);
+
+    } catch (err: any) {
+      console.error(err);
+      alert('Error de generación de sitio con IA: ' + err.message);
+      setFullSiteGenerating(false);
+    }
   };
 
   const selectedBlock = structure.blocks.find(b => b.id === selectedBlockId);
