@@ -208,6 +208,22 @@ export interface TelemetryMetric {
 // Initial mock data definitions
 const INITIAL_TENANTS: Tenant[] = [
   {
+    id: 't-main',
+    name: 'SASWEBS Principal',
+    subdomain: 'saswebs',
+    customDomain: 'saswebs.nram360.com',
+    plan: 'Enterprise',
+    status: 'active',
+    isLmsEnabled: true,
+    isEcommerceEnabled: true,
+    isPosEnabled: true,
+    isQrPaymentEnabled: true,
+    isReservasEnabled: true,
+    themeDarkMode: false,
+    favicon: '👑',
+    expirationDate: '2030-01-01'
+  },
+  {
     id: 't-celeste',
     name: 'Academia y Tienda Celeste S.A.',
     subdomain: 'celeste',
