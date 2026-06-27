@@ -208,22 +208,6 @@ export interface TelemetryMetric {
 // Initial mock data definitions
 const INITIAL_TENANTS: Tenant[] = [
   {
-    id: 't-main',
-    name: 'SASWEBS Principal',
-    subdomain: 'saswebs',
-    customDomain: 'saswebs.nram360.com',
-    plan: 'Enterprise',
-    status: 'active',
-    isLmsEnabled: true,
-    isEcommerceEnabled: true,
-    isPosEnabled: true,
-    isQrPaymentEnabled: true,
-    isReservasEnabled: true,
-    themeDarkMode: false,
-    favicon: '👑',
-    expirationDate: '2030-01-01'
-  },
-  {
     id: 't-celeste',
     name: 'Academia y Tienda Celeste S.A.',
     subdomain: 'celeste',
@@ -583,15 +567,7 @@ class SupabaseMock {
   private getStorage<T>(key: string, defaultVal: T): T {
     if (typeof window === 'undefined') return defaultVal;
     const item = localStorage.getItem(key);
-    if (item === null) return defaultVal;
-    try {
-      return JSON.parse(item) as T;
-    } catch (e) {
-      if (typeof defaultVal === 'string') {
-        return item as unknown as T;
-      }
-      return defaultVal;
-    }
+    return item ? JSON.parse(item) : defaultVal;
   }
 
   private setStorage<T>(key: string, value: T) {
@@ -602,7 +578,7 @@ class SupabaseMock {
 
   // Helper to trigger background table syncing to Supabase
   private syncTable(key: string, data: any[]) {
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
       syncTableToSupabase(key, data).catch(err => console.error(`Sync error for ${key}:`, err));
     }
   }
@@ -619,7 +595,7 @@ class SupabaseMock {
   getActiveTenant(): Tenant {
     const tenants = this.getTenants();
     const activeId = this.getStorage('mock_active_tenant_id', 't-celeste');
-    return tenants.find(t => t.id === activeId) || tenants[0] || INITIAL_TENANTS[0];
+    return tenants.find(t => t.id === activeId) || tenants[0];
   }
 
   setActiveTenantId(id: string) {
@@ -1073,7 +1049,7 @@ function mapToLocal(dbObj: any, map: Record<string, string>) {
 // Background sync functions to remote Supabase
 async function syncTableToSupabase(tableKey: string, localItems: any[]) {
   if (typeof window === 'undefined') return;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
 
   const MAPS: Record<string, any> = {
     products: { dbTable: 'products', map: PRODUCT_MAP, tenantIdField: 'tenant_id' },
@@ -1153,7 +1129,7 @@ async function syncTableToSupabase(tableKey: string, localItems: any[]) {
 
 async function syncFromSupabase() {
   if (typeof window === 'undefined') return;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
 
   try {
     const { getSupabase } = await import('@/lib/supabase-browser');
@@ -1256,7 +1232,7 @@ async function syncFromSupabase() {
 }
 
 // Start auth state listener and initial sync on client load
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
   import('@/lib/supabase-browser').then(({ getSupabase }) => {
     const supabase = getSupabase();
     supabase.auth.onAuthStateChange((event, session) => {
