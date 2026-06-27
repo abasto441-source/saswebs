@@ -50,43 +50,54 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
   // Resolve tenant and initialize page
   useEffect(() => {
     setIsClient(true);
-    params.then(unwrapped => {
-      setSlug(unwrapped.slug);
-      
-      // Resolve tenant by subdomain/custom domain or fallback to active tenant
-      const tenants = dbAdapter.getTenants();
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      let resolved = tenants.find(t => t.customDomain === hostname || t.subdomain === hostname);
-      if (!resolved) {
-        resolved = dbAdapter.getActiveTenant();
-      }
-      setActiveTenant(resolved);
 
-      // Set diagnostics parameters based on resolving location
-      const loc = resolved.subdomain === 'tecnobo' 
-        ? 'MIA-02 (Miami, USA)' 
-        : 'SCL-01 (Santiago, Chile)';
-      const ip = resolved.subdomain === 'tecnobo'
-        ? '104.26.12.31'
-        : '172.67.74.120';
-      setDiagnosticsMetric({
-        rayId: 'cf-' + Math.random().toString(36).substr(2, 14),
-        execTime: resolved.subdomain === 'tecnobo' ? 22 : 14,
-        edgeIp: ip,
-        nodeLocation: loc
-      });
+    const resolveParams = async () => {
+      try {
+        const resolvedParams = await params;
+        const targetSlug = resolvedParams?.slug;
+        if (!targetSlug) return;
+        setSlug(targetSlug);
+        
+        // Resolve tenant by subdomain/custom domain or fallback to active tenant
+        const tenants = dbAdapter.getTenants();
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+        let resolved = tenants.find(t => t.customDomain === hostname || t.subdomain === hostname);
+        if (!resolved) {
+          resolved = dbAdapter.getActiveTenant();
+        }
+        if (!resolved) return;
+        setActiveTenant(resolved);
 
-      const customerAccounts = dbAdapter.getCustomerAccounts();
-      const activeCust = customerAccounts.find(c => c.tenantId === resolved.id) || customerAccounts[0];
-      setCustomer(activeCust || null);
-
-      const page = dbAdapter.getTenantPage(resolved.id, unwrapped.slug);
-      if (page) {
-        initPage(page.id, page.slug, page.title, page.isPublished, {
-          blocks: JSON.parse(page.structureJson)
+        // Set diagnostics parameters based on resolving location
+        const loc = resolved.subdomain === 'tecnobo' 
+          ? 'MIA-02 (Miami, USA)' 
+          : 'SCL-01 (Santiago, Chile)';
+        const ip = resolved.subdomain === 'tecnobo'
+          ? '104.26.12.31'
+          : '172.67.74.120';
+        setDiagnosticsMetric({
+          rayId: 'cf-' + Math.random().toString(36).substr(2, 14),
+          execTime: resolved.subdomain === 'tecnobo' ? 22 : 14,
+          edgeIp: ip,
+          nodeLocation: loc
         });
+
+        const customerAccounts = dbAdapter.getCustomerAccounts();
+        const activeCust = customerAccounts.find(c => c.tenantId === resolved.id) || customerAccounts[0];
+        setCustomer(activeCust || null);
+
+        const page = dbAdapter.getTenantPage(resolved.id, targetSlug);
+        if (page) {
+          initPage(page.id, page.slug, page.title, page.isPublished, {
+            blocks: JSON.parse(page.structureJson)
+          });
+        }
+      } catch (err) {
+        console.error('Error resolving params:', err);
       }
-    });
+    };
+
+    resolveParams();
 
     setCourses(dbAdapter.getCourses());
     setEnrollments(dbAdapter.getEnrollments());
@@ -124,6 +135,12 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
     }
   }, [courses]);
 
+  useEffect(() => {
+    if (cliTerminalEndRef.current) {
+      cliTerminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [cliHistory]);
+
   if (!isClient || !slug) return null;
 
   const activeCourse = courses.find(c => c.id === activeCourseId);
@@ -136,12 +153,6 @@ export default function StorefrontPage({ params }: { params: Promise<{ slug: str
     { title: 'Lección 3: Server Actions y Mutations', duration: '22 mins', video: 'https://assets.mixkit.co/videos/preview/mixkit-coding-on-a-laptop-42171-large.mp4' },
     { title: 'Lección 4: Integración Supabase Postgres RLS', duration: '25 mins', video: 'https://assets.mixkit.co/videos/preview/mixkit-hand-of-a-developer-typing-on-a-keyboard-40437-large.mp4' }
   ].slice(0, activeCourse.lessonsCount) : [];
-
-  useEffect(() => {
-    if (cliTerminalEndRef.current) {
-      cliTerminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [cliHistory]);
 
   const handleCliSubmit = (e: React.FormEvent) => {
     e.preventDefault();
