@@ -94,11 +94,11 @@ export default function Home() {
   const currentHosting = getHostingDetails();
 
   return (
-    <div className="w-full min-h-[calc(100vh-3rem)] bg-gradient-to-br from-white via-[#f0f9fb] to-white text-slate-800 flex flex-col justify-between">
+    <div className="w-full min-h-[calc(100vh-3rem)] bg-gradient-to-br from-white via-[#f0f9ff] to-white text-slate-800 flex flex-col justify-between">
       
       {/* 1. HERO SECTION */}
       <header className="max-w-6xl mx-auto w-full px-6 py-16 text-center flex flex-col items-center gap-6">
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-celeste-claro/30 text-primary-celeste rounded-full text-xs font-black uppercase tracking-widest animate-pulse border border-[#bce6ed]/50">
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-celeste-claro/30 text-primary-celeste rounded-full text-xs font-black uppercase tracking-widest animate-pulse border border-celeste-claro/50">
           <Sparkles className="w-3.5 h-3.5" /> Portal de Infraestructura SaaS
         </div>
         <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-none max-w-4xl">

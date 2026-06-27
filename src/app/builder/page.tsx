@@ -472,7 +472,7 @@ export default function BuilderPage() {
           </button>
           <button 
             onClick={() => setShowExtractModal(true)}
-            className="px-4 py-2 border border-[#bce6ed] text-primary-celeste bg-celeste-claro/20 rounded-full font-bold hover:bg-celeste-claro/40 transition-colors text-xs"
+            className="px-4 py-2 border border-celeste-claro text-primary-celeste bg-celeste-claro/20 rounded-full font-bold hover:bg-celeste-claro/40 transition-colors text-xs"
             title="Extraer esta estructura de página como tema"
           >
             📥 Extraer Plantilla
@@ -1606,7 +1606,7 @@ export default function BuilderPage() {
       {/* 9. ONBOARDING CREAR NUEVO SITIO WEB WIZARD */}
       {onboardingStep > 0 && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 text-slate-800">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl p-8 border border-[#bce6ed]/30 flex flex-col gap-6 relative overflow-hidden">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl p-8 border border-celeste-claro/30 flex flex-col gap-6 relative overflow-hidden">
             {/* Corner glow */}
             <div className="absolute -top-12 -right-12 w-28 h-28 bg-primary-celeste/20 rounded-full blur-2xl"></div>
 
