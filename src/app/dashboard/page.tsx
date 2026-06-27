@@ -30,7 +30,8 @@ export default function DashboardPage() {
     'analytics' | 'products' | 'courses' | 'lms_users' | 'settings' | 'apps' | 
     'reservations' | 'cms' | 'workflows' | 'integrations' | 'billing' | 'audit' | 'reports' | 'api' | 'franquicias' |
     'accounting_accounts' | 'accounting_entries' | 'accounting_reports' |
-    'education_schools' | 'education_members' | 'whitelabel'
+    'education_schools' | 'education_members' | 'whitelabel' |
+    'crm_pipeline' | 'fulfillment_orders' | 'inventory_warehouses' | 'helpdesk_support' | 'hr_payroll'
   >('analytics');
   
   // Edit variables
@@ -171,6 +172,46 @@ export default function DashboardPage() {
   const [newMemberRole, setNewMemberRole] = useState<'student' | 'teacher' | 'parent'>('student');
   const [newMemberSchool, setNewMemberSchool] = useState('');
 
+  // ==================== [NEW] TABS ENTERPRISE 80 STATES ====================
+  const [leads, setLeads] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+
+  // New Lead Form States
+  const [newLeadName, setNewLeadName] = useState('');
+  const [newLeadCompany, setNewLeadCompany] = useState('');
+  const [newLeadEmail, setNewLeadEmail] = useState('');
+  const [newLeadPhone, setNewLeadPhone] = useState('');
+  const [newLeadValue, setNewLeadValue] = useState(0);
+
+  // New Warehouse Form States
+  const [newWhName, setNewWhName] = useState('');
+  const [newWhLocation, setNewWhLocation] = useState('');
+
+  // New Batch Form States
+  const [newBatchProductId, setNewBatchProductId] = useState('');
+  const [newBatchWhId, setNewBatchWhId] = useState('');
+  const [newBatchNum, setNewBatchNum] = useState('');
+  const [newBatchQty, setNewBatchQty] = useState(0);
+  const [newBatchExpiry, setNewBatchExpiry] = useState('');
+
+  // New Ticket Form States
+  const [newTktCustName, setNewTktCustName] = useState('');
+  const [newTktCustEmail, setNewTktCustEmail] = useState('');
+  const [newTktSubject, setNewTktSubject] = useState('');
+  const [newTktDesc, setNewTktDesc] = useState('');
+  const [newTktPriority, setNewTktPriority] = useState<'low' | 'medium' | 'high'>('medium');
+
+  // New Employee Form States
+  const [newEmpFirst, setNewEmpFirst] = useState('');
+  const [newEmpLast, setNewEmpLast] = useState('');
+  const [newEmpEmail, setNewEmpEmail] = useState('');
+  const [newEmpRole, setNewEmpRole] = useState('');
+  const [newEmpSalary, setNewEmpSalary] = useState(0);
+  const [newEmpHireDate, setNewEmpHireDate] = useState('');
+
   // Helper check for Read-Only guest mode
   const isGuestMode = activeRole === 'invitado';
 
@@ -225,6 +266,13 @@ export default function DashboardPage() {
     // Load new Education data
     setSchools(dbAdapter.getEducationSchools(active.id));
     setEduMembers(dbAdapter.getEducationMembers(active.id));
+
+    // Load new CRM, Warehouses, Tickets, Employees
+    setLeads(dbAdapter.getCrmLeads(active.id));
+    setWarehouses(dbAdapter.getWarehouses(active.id));
+    setBatches(dbAdapter.getBatches(active.id));
+    setTickets(dbAdapter.getHelpdeskTickets(active.id));
+    setEmployees(dbAdapter.getEmployees(active.id));
   };
 
   useEffect(() => {
@@ -427,6 +475,258 @@ export default function DashboardPage() {
     dbAdapter.saveEducationMembers(tenant.id, updated);
     setNewMemberName('');
     setNewMemberEmail('');
+    reloadAllData();
+  };
+
+  // CRM Form Actions
+  const handleAddLead = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newLeadName || !tenant) return;
+    const newL = {
+      id: 'lead-' + Date.now(),
+      tenantId: tenant.id,
+      name: newLeadName,
+      company: newLeadCompany || undefined,
+      email: newLeadEmail || undefined,
+      phone: newLeadPhone || undefined,
+      value: Number(newLeadValue),
+      stage: 'prospect' as const
+    };
+    const updated = [...leads, newL];
+    setLeads(updated);
+    dbAdapter.saveCrmLeads(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'CRM Prospecto Creado', `Prospecto: ${newLeadName} por $${newL.value}`);
+    setNewLeadName('');
+    setNewLeadCompany('');
+    setNewLeadEmail('');
+    setNewLeadPhone('');
+    setNewLeadValue(0);
+    reloadAllData();
+  };
+
+  const handleUpdateLeadStage = (id: string, stage: 'prospect' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost') => {
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!tenant) return;
+    const updated = leads.map(l => l.id === id ? { ...l, stage } : l);
+    setLeads(updated);
+    dbAdapter.saveCrmLeads(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'CRM Estado Modificado', `ID: ${id} a etapa: ${stage}`);
+    reloadAllData();
+  };
+
+  const handleDeleteLead = (id: string) => {
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!tenant) return;
+    const updated = leads.filter(l => l.id !== id);
+    setLeads(updated);
+    dbAdapter.saveCrmLeads(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'CRM Prospecto Eliminado', `ID: ${id}`);
+    reloadAllData();
+  };
+
+  // Warehouse Form Actions
+  const handleAddWarehouse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newWhName || !tenant) return;
+    const newW = {
+      id: 'wh-' + Date.now(),
+      tenantId: tenant.id,
+      name: newWhName,
+      location: newWhLocation || undefined
+    };
+    const updated = [...warehouses, newW];
+    setWarehouses(updated);
+    dbAdapter.saveWarehouses(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Almacén Creado', `Almacén: ${newWhName}`);
+    setNewWhName('');
+    setNewWhLocation('');
+    reloadAllData();
+  };
+
+  // Batch Form Actions
+  const handleAddBatch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newBatchProductId || !newBatchWhId || !newBatchNum || !tenant) return;
+    const newB = {
+      id: 'batch-' + Date.now(),
+      tenantId: tenant.id,
+      productId: newBatchProductId,
+      warehouseId: newBatchWhId,
+      batchNumber: newBatchNum,
+      qty: Number(newBatchQty),
+      expiryDate: newBatchExpiry || undefined
+    };
+    const updated = [...batches, newB];
+    setBatches(updated);
+    dbAdapter.saveBatches(tenant.id, updated);
+    
+    // Sum stock back to main product
+    const updatedProds = products.map(p => 
+      p.id === newBatchProductId 
+        ? { ...p, stock: p.stock + newB.qty } 
+        : p
+    );
+    setProducts(updatedProds);
+    dbAdapter.saveProducts(updatedProds);
+
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Lote Inventario Asignado', `Lote: ${newBatchNum}, Qty: ${newB.qty}`);
+    setNewBatchNum('');
+    setNewBatchQty(0);
+    setNewBatchExpiry('');
+    reloadAllData();
+  };
+
+  // Fulfillment Actions
+  const handleUpdateShippingStatus = (orderId: string, status: 'pending' | 'packing' | 'shipped' | 'delivered') => {
+    if (!verifyPermission(['owner', 'manager', 'cajero'])) return;
+    if (!tenant) return;
+    
+    const savedOrders = dbAdapter.getStorage('mock_orders', []);
+    const updatedOrders = savedOrders.map((o: any) => {
+      if (o.id === orderId) {
+        let tracking = o.trackingNumber;
+        if (status === 'shipped' && !tracking) {
+          tracking = 'EP-' + Math.floor(10000000 + Math.random() * 90000000);
+        }
+        return { ...o, shippingStatus: status, trackingNumber: tracking };
+      }
+      return o;
+    });
+    dbAdapter.setStorage('mock_orders', updatedOrders);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Envío Modificado', `Pedido ID ${orderId} a estado: ${status}`);
+    reloadAllData();
+  };
+
+  // HelpDesk Actions
+  const handleAddTicket = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTktSubject || !newTktDesc || !tenant) return;
+    const newT = {
+      id: 'tkt-' + Date.now(),
+      tenantId: tenant.id,
+      customerName: newTktCustName || 'Cliente Anónimo',
+      customerEmail: newTktCustEmail || 'anonimo@gmail.com',
+      subject: newTktSubject,
+      description: newTktDesc,
+      status: 'open' as const,
+      priority: newTktPriority
+    };
+    const updated = [...tickets, newT];
+    setTickets(updated);
+    dbAdapter.saveHelpdeskTickets(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, 'cliente@help.com', 'Ticket Creado', `Asunto: ${newTktSubject}`);
+    setNewTktCustName('');
+    setNewTktCustEmail('');
+    setNewTktSubject('');
+    setNewTktDesc('');
+    reloadAllData();
+  };
+
+  const handleUpdateTicketStatus = (id: string, status: 'open' | 'pending' | 'resolved') => {
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!tenant) return;
+    const updated = tickets.map(t => t.id === id ? { ...t, status } : t);
+    setTickets(updated);
+    dbAdapter.saveHelpdeskTickets(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Ticket Actualizado', `ID ${id} a estado: ${status}`);
+    reloadAllData();
+  };
+
+  // HR & Payroll Actions
+  const handleAddEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newEmpFirst || !newEmpEmail || !tenant) return;
+    const newEmp = {
+      id: 'emp-' + Date.now(),
+      tenantId: tenant.id,
+      firstName: newEmpFirst,
+      lastName: newEmpLast,
+      email: newEmpEmail,
+      role: newEmpRole,
+      salary: Number(newEmpSalary),
+      hireDate: newEmpHireDate || undefined,
+      status: 'active' as const
+    };
+    const updated = [...employees, newEmp];
+    setEmployees(updated);
+    dbAdapter.saveEmployees(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Empleado Contratado', `${newEmpFirst} ${newEmpLast} como ${newEmpRole}`);
+    setNewEmpFirst('');
+    setNewEmpLast('');
+    setNewEmpEmail('');
+    setNewEmpRole('');
+    setNewEmpSalary(0);
+    setNewEmpHireDate('');
+    reloadAllData();
+  };
+
+  const handleRunPayroll = () => {
+    if (!verifyPermission(['owner'])) return;
+    if (!tenant) return;
+
+    const activeStaff = employees.filter(e => e.status === 'active');
+    if (activeStaff.length === 0) {
+      alert('No hay empleados activos registrados para procesar nómina.');
+      return;
+    }
+    const totalPayroll = activeStaff.reduce((sum, emp) => sum + emp.salary, 0);
+
+    const expenseAccount = accounts.find(a => a.type === 'gasto' && a.code.startsWith('5'));
+    const cashAccount = accounts.find(a => a.type === 'activo' && a.code.startsWith('1'));
+
+    if (!expenseAccount || !cashAccount) {
+      alert('Error contable: No se encontraron cuentas de Gasto y Caja/Banco en tu plan contable. Configúralas primero.');
+      return;
+    }
+
+    const entryId = 'JE-PAY-' + Date.now();
+    const newEntry = {
+      id: entryId,
+      tenantId: tenant.id,
+      entryDate: new Date().toISOString().substring(0, 10),
+      description: `Pago de Planilla Mensual - Staff (${activeStaff.length} Empleados)`,
+      status: 'posted' as const
+    };
+
+    const newItems = [
+      {
+        id: 'ji-pay-1-' + Date.now(),
+        tenantId: tenant.id,
+        entryId: entryId,
+        accountId: expenseAccount.id,
+        debit: totalPayroll,
+        credit: 0,
+        costCenter: 'Administración'
+      },
+      {
+        id: 'ji-pay-2-' + Date.now(),
+        tenantId: tenant.id,
+        entryId: entryId,
+        accountId: cashAccount.id,
+        debit: 0,
+        credit: totalPayroll,
+        costCenter: 'Caja Central'
+      }
+    ];
+
+    const allEntries = dbAdapter.getJournalEntries(tenant.id);
+    dbAdapter.saveJournalEntries(tenant.id, [...allEntries, newEntry]);
+
+    const allItems = dbAdapter.getJournalItems(tenant.id);
+    dbAdapter.saveJournalItems(tenant.id, [...allItems, ...newItems]);
+
+    dbAdapter.addAuditLog(
+      tenant.id, 
+      `${activeRole}@tenant.com`, 
+      'Nómina Contabilizada', 
+      `Pago planilla total $${totalPayroll.toFixed(2)} registrado en Libro Diario.`
+    );
+
+    alert(`¡Planilla procesada con éxito!\nTotal Nómina: $${totalPayroll.toFixed(2)}\nAsiento contable [${entryId}] generado en Libro Diario.`);
     reloadAllData();
   };
 
@@ -1432,6 +1732,51 @@ export default function DashboardPage() {
               className={getNavBtnClass('education_members')}
             >
               <Users className="w-3.5 h-3.5" /> Educativo: Miembros
+            </button>
+          )}
+
+          {isTabVisible('crm_pipeline') && (
+            <button 
+              onClick={() => setActiveTab('crm_pipeline')}
+              className={getNavBtnClass('crm_pipeline')}
+            >
+              <Users className="w-3.5 h-3.5 text-orange-500 font-bold" /> CRM & Prospectos
+            </button>
+          )}
+
+          {isTabVisible('fulfillment_orders') && (
+            <button 
+              onClick={() => setActiveTab('fulfillment_orders')}
+              className={getNavBtnClass('fulfillment_orders')}
+            >
+              <Truck className="w-3.5 h-3.5 text-blue-500 font-bold" /> Órdenes & Envíos
+            </button>
+          )}
+
+          {isTabVisible('inventory_warehouses') && (
+            <button 
+              onClick={() => setActiveTab('inventory_warehouses')}
+              className={getNavBtnClass('inventory_warehouses')}
+            >
+              <Boxes className="w-3.5 h-3.5 text-green-500 font-bold" /> Almacenes & Lotes
+            </button>
+          )}
+
+          {isTabVisible('helpdesk_support') && (
+            <button 
+              onClick={() => setActiveTab('helpdesk_support')}
+              className={getNavBtnClass('helpdesk_support')}
+            >
+              <Zap className="w-3.5 h-3.5 text-purple-500 font-bold" /> HelpDesk Soporte
+            </button>
+          )}
+
+          {isTabVisible('hr_payroll') && (
+            <button 
+              onClick={() => setActiveTab('hr_payroll')}
+              className={getNavBtnClass('hr_payroll')}
+            >
+              <Briefcase className="w-3.5 h-3.5 text-teal-500 font-bold" /> RRHH & Nómina
             </button>
           )}
 
@@ -3483,6 +3828,473 @@ export default function DashboardPage() {
                 <span className="text-slate-600 font-semibold">
                   Los colores del **White Label** se inyectan dinámicamente en el tema CSS y el editor de páginas.
                 </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: CRM & PIPELINE ==================== */}
+        {activeTab === 'crm_pipeline' && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Metric widgets */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                <span className="text-[10px] font-black uppercase text-slate-400">Total Prospectos</span>
+                <span className="text-2xl font-black text-slate-900 mt-2">{leads.length}</span>
+              </div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                <span className="text-[10px] font-black uppercase text-slate-400">Valor del Embudo (Pipeline)</span>
+                <span className="text-2xl font-black text-primary-celeste mt-2 font-mono">
+                  ${leads.reduce((sum, l) => sum + (l.value || 0), 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                <span className="text-[10px] font-black uppercase text-slate-400">Tratos Ganados</span>
+                <span className="text-2xl font-black text-green-600 mt-2">
+                  {leads.filter(l => l.stage === 'won').length}
+                </span>
+              </div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                <span className="text-[10px] font-black uppercase text-slate-400">Tratos Perdidos</span>
+                <span className="text-2xl font-black text-red-500 mt-2">
+                  {leads.filter(l => l.stage === 'lost').length}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Form to add lead */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">Añadir Prospecto</span>
+                <form onSubmit={handleAddLead} className="flex flex-col gap-4 text-xs font-semibold">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Nombre del Contacto</label>
+                    <input required type="text" placeholder="Ej. Juan Pérez" value={newLeadName} onChange={e => setNewLeadName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Empresa / Organización</label>
+                    <input type="text" placeholder="Ej. Pérez Distribuidora" value={newLeadCompany} onChange={e => setNewLeadCompany(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Correo Electrónico</label>
+                      <input type="email" placeholder="juan@correo.com" value={newLeadEmail} onChange={e => setNewLeadEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Teléfono</label>
+                      <input type="text" placeholder="+56987654321" value={newLeadPhone} onChange={e => setNewLeadPhone(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Valor Estimado del Trato ($)</label>
+                    <input required type="number" placeholder="0.00" value={newLeadValue || ''} onChange={e => setNewLeadValue(Number(e.target.value))} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                    <Plus className="w-4 h-4 text-primary-celeste" /> Crear Prospecto
+                  </button>
+                </form>
+              </div>
+
+              {/* Kanban/Embudo Pipeline view */}
+              <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">Pipeline de Ventas</span>
+                
+                <div className="space-y-4">
+                  {leads.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-colors text-xs">
+                      <div>
+                        <h4 className="font-black text-slate-900 text-sm">{l.name}</h4>
+                        <p className="text-gray-400 mt-0.5">{l.company || 'Sin Empresa'} • {l.email || 'Sin Correo'}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <span className="font-mono font-black text-slate-950">${l.value.toFixed(2)}</span>
+                        
+                        <select 
+                          value={l.stage} 
+                          onChange={(e) => handleUpdateLeadStage(l.id, e.target.value as any)}
+                          className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold"
+                        >
+                          <option value="prospect">Prospecto</option>
+                          <option value="contacted">Contactado</option>
+                          <option value="qualified">Calificado</option>
+                          <option value="proposal">Propuesta</option>
+                          <option value="won">Ganado (Won)</option>
+                          <option value="lost">Perdido (Lost)</option>
+                        </select>
+
+                        <button 
+                          onClick={() => handleDeleteLead(l.id)}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: FULFILLMENT & ORDENES ==================== */}
+        {activeTab === 'fulfillment_orders' && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md animate-fade-in">
+            <span className="font-extrabold text-sm text-slate-800 block mb-4">Gestión de Órdenes & Fulfillment de Envíos</span>
+            <p className="text-xs text-gray-500 mb-6">Administra los estados de preparación y despacho de las ventas eCommerce y POS.</p>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 font-bold text-gray-400">
+                    <th className="pb-3">Pedido ID</th>
+                    <th className="pb-3">Fecha</th>
+                    <th className="pb-3">Artículos</th>
+                    <th className="pb-3 text-right">Monto</th>
+                    <th className="pb-3 text-center">Estado Envío</th>
+                    <th className="pb-3">Tracking ID (EasyPost)</th>
+                    <th className="pb-3 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dbAdapter.getStorage('mock_orders', []).map((o: any) => {
+                    const itemsText = o.items ? o.items.map((i: any) => `${i.name} (${i.quantity})`).join(', ') : 'Venta POS';
+                    return (
+                      <tr key={o.id} className="border-b border-slate-50 last:border-b-0 hover:bg-slate-50/20">
+                        <td className="py-4 font-mono font-bold text-slate-900 uppercase">{o.id}</td>
+                        <td className="py-4 text-slate-500">{o.date || o.created_at}</td>
+                        <td className="py-4 text-slate-600 font-semibold max-w-[200px] truncate" title={itemsText}>{itemsText}</td>
+                        <td className="py-4 text-right font-black text-slate-950 font-mono">${o.total?.toFixed(2)}</td>
+                        <td className="py-4 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            o.shippingStatus === 'delivered' ? 'bg-green-100 text-green-700' :
+                            o.shippingStatus === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                            o.shippingStatus === 'packing' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            {o.shippingStatus || 'pending'}
+                          </span>
+                        </td>
+                        <td className="py-4 font-mono text-[10px] text-gray-500">{o.trackingNumber || 'No Asignado'}</td>
+                        <td className="py-4 text-right">
+                          <div className="flex gap-1.5 justify-end">
+                            {(o.shippingStatus === 'pending' || !o.shippingStatus) && (
+                              <button 
+                                onClick={() => handleUpdateShippingStatus(o.id, 'packing')}
+                                className="py-1 px-2.5 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold rounded-lg text-[10px]"
+                              >
+                                Empacar
+                              </button>
+                            )}
+                            {o.shippingStatus === 'packing' && (
+                              <button 
+                                onClick={() => handleUpdateShippingStatus(o.id, 'shipped')}
+                                className="py-1 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-[10px]"
+                              >
+                                Despachar CNAME
+                              </button>
+                            )}
+                            {o.shippingStatus === 'shipped' && (
+                              <button 
+                                onClick={() => handleUpdateShippingStatus(o.id, 'delivered')}
+                                className="py-1 px-2.5 bg-green-50 hover:bg-green-100 text-green-600 font-bold rounded-lg text-[10px]"
+                              >
+                                Entregar
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: BODEGAS & LOTES ==================== */}
+        {activeTab === 'inventory_warehouses' && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Form 1: Warehouse */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">Añadir Bodega / Almacén</span>
+                <form onSubmit={handleAddWarehouse} className="flex flex-col gap-4 text-xs font-semibold">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Nombre de Bodega</label>
+                    <input required type="text" placeholder="Ej. Bodega Central" value={newWhName} onChange={e => setNewWhName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Ubicación / Dirección</label>
+                    <input required type="text" placeholder="Ej. Av. Kennedy 1200" value={newWhLocation} onChange={e => setNewWhLocation(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                    <Plus className="w-4 h-4 text-primary-celeste" /> Crear Bodega
+                  </button>
+                </form>
+              </div>
+
+              {/* Form 2: Batch Allocation */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">Asignar Stock por Lotes</span>
+                <form onSubmit={handleAddBatch} className="flex flex-col gap-4 text-xs font-semibold">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Producto</label>
+                      <select required value={newBatchProductId} onChange={e => setNewBatchProductId(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="">-- Seleccionar --</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Bodega Destino</label>
+                      <select required value={newBatchWhId} onChange={e => setNewBatchWhId(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="">-- Seleccionar --</option>
+                        {warehouses.map(w => (
+                          <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Número de Lote (Batch)</label>
+                      <input required type="text" placeholder="Ej. LOT-2026-99" value={newBatchNum} onChange={e => setNewBatchNum(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Cantidad (Stock)</label>
+                      <input required type="number" placeholder="10" value={newBatchQty || ''} onChange={e => setNewBatchQty(Number(e.target.value))} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Fecha de Vencimiento</label>
+                    <input type="date" value={newBatchExpiry} onChange={e => setNewBatchExpiry(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                    <Plus className="w-4 h-4 text-primary-celeste" /> Ingresar Lote
+                  </button>
+                </form>
+              </div>
+
+              {/* Warehouse Info Card list */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">Bodegas y Lotes Activos</span>
+                
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Bodegas ({warehouses.length})</span>
+                  {warehouses.map(w => (
+                    <div key={w.id} className="p-3 border border-slate-100 rounded-xl bg-slate-50/20 text-xs font-semibold">
+                      <div className="text-slate-800 font-bold">{w.name}</div>
+                      <div className="text-gray-400 mt-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> {w.location || 'Sin Ubicación'}</div>
+                    </div>
+                  ))}
+
+                  <div className="border-t border-slate-100 pt-4 mt-4">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-3">Lotes y Vencimientos ({batches.length})</span>
+                    {batches.map(b => {
+                      const matchedP = products.find(p => p.id === b.productId);
+                      const matchedW = warehouses.find(w => w.id === b.warehouseId);
+                      return (
+                        <div key={b.id} className="flex justify-between items-center py-2.5 border-b border-slate-50 text-xs last:border-0">
+                          <div>
+                            <span className="font-bold text-slate-800 block">{matchedP ? matchedP.name : b.productId}</span>
+                            <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider mt-0.5">Lote: {b.batchNumber} • Bodega: {matchedW ? matchedW.name : b.warehouseId}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-black text-slate-900 font-mono block">Cant: {b.qty}</span>
+                            {b.expiryDate && <span className="text-[9px] font-bold text-red-500 block mt-0.5">Vence: {b.expiryDate}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: HELPDESK & SOPORTE ==================== */}
+        {activeTab === 'helpdesk_support' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+            
+            {/* Ticket Submission Form */}
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Abrir Ticket de Soporte</span>
+              <form onSubmit={handleAddTicket} className="flex flex-col gap-4 text-xs font-semibold">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Nombre Cliente</label>
+                    <input required type="text" placeholder="Ej. Pedro Soto" value={newTktCustName} onChange={e => setNewTktCustName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Email Cliente</label>
+                    <input required type="email" placeholder="pedro@correo.com" value={newTktCustEmail} onChange={e => setNewTktCustEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Asunto</label>
+                  <input required type="text" placeholder="Ej. Falla al procesar tarjeta" value={newTktSubject} onChange={e => setNewTktSubject(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Prioridad</label>
+                  <select value={newTktPriority} onChange={e => setNewTktPriority(e.target.value as any)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="low">Baja</option>
+                    <option value="medium">Media</option>
+                    <option value="high">Alta</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Descripción del Problema</label>
+                  <textarea required placeholder="Indica el mensaje del error..." value={newTktDesc} onChange={e => setNewTktDesc(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl h-24" />
+                </div>
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Plus className="w-4 h-4 text-primary-celeste" /> Abrir Ticket
+                </button>
+              </form>
+            </div>
+
+            {/* Support Tickets list */}
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Tickets Activos</span>
+              
+              <div className="space-y-4">
+                {tickets.map(t => (
+                  <div key={t.id} className="p-4 border border-slate-100 rounded-2xl bg-slate-50/20 text-xs">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-black text-slate-950 text-sm">{t.subject}</h4>
+                        <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Cliente: {t.customerName} ({t.customerEmail})</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                          t.priority === 'high' ? 'bg-red-100 text-red-700' :
+                          t.priority === 'medium' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {t.priority}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                          t.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                          t.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {t.status}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-slate-600 mt-3 font-medium bg-white p-3 border border-slate-100 rounded-xl leading-relaxed">{t.description}</p>
+                    
+                    {t.status !== 'resolved' && (
+                      <div className="flex gap-2 mt-4 justify-end">
+                        {t.status === 'open' && (
+                          <button 
+                            onClick={() => handleUpdateTicketStatus(t.id, 'pending')}
+                            className="py-1 px-3 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-bold rounded-lg text-[10px]"
+                          >
+                            Marcar Pendiente
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleUpdateTicketStatus(t.id, 'resolved')}
+                          className="py-1 px-3 bg-green-50 hover:bg-green-100 text-green-600 font-bold rounded-lg text-[10px]"
+                        >
+                          Resolver Ticket
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: RRHH & NOMINA ==================== */}
+        {activeTab === 'hr_payroll' && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Employee registration form */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Empleado (Staff)</span>
+                <form onSubmit={handleAddEmployee} className="flex flex-col gap-4 text-xs font-semibold">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Nombre</label>
+                      <input required type="text" placeholder="Ej. Carlos" value={newEmpFirst} onChange={e => setNewEmpFirst(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Apellido</label>
+                      <input required type="text" placeholder="Ej. Gómez" value={newEmpLast} onChange={e => setNewEmpLast(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Email Empleado</label>
+                    <input required type="email" placeholder="carlos@correo.com" value={newEmpEmail} onChange={e => setNewEmpEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Cargo / Puesto</label>
+                      <input required type="text" placeholder="Ej. Manager" value={newEmpRole} onChange={e => setNewEmpRole(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Salario Mensual ($)</label>
+                      <input required type="number" placeholder="2500" value={newEmpSalary || ''} onChange={e => setNewEmpSalary(Number(e.target.value))} className="px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Fecha de Contratación</label>
+                    <input type="date" value={newEmpHireDate} onChange={e => setNewEmpHireDate(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                    <Plus className="w-4 h-4 text-primary-celeste" /> Registrar Personal
+                  </button>
+                </form>
+              </div>
+
+              {/* Employee table */}
+              <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <div className="flex justify-between items-center mb-5">
+                  <span className="font-extrabold text-sm text-slate-800">Planilla y Nómina de Personal</span>
+                  <button 
+                    onClick={handleRunPayroll}
+                    className="py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow"
+                  >
+                    <Coins className="w-4 h-4" /> Ejecutar & Contabilizar Nómina
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 font-bold text-gray-400">
+                        <th className="pb-3">Empleado</th>
+                        <th className="pb-3">Cargo</th>
+                        <th className="pb-3">Email</th>
+                        <th className="pb-3 text-right">Salario Mensual</th>
+                        <th className="pb-3 text-center">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employees.map(e => (
+                        <tr key={e.id} className="border-b border-slate-50 last:border-b-0">
+                          <td className="py-3 font-bold text-slate-900">{e.firstName} {e.lastName}</td>
+                          <td className="py-3 text-slate-600 font-semibold">{e.role}</td>
+                          <td className="py-3 text-slate-500 font-mono">{e.email}</td>
+                          <td className="py-3 text-right font-black text-slate-950 font-mono">${e.salary.toFixed(2)}</td>
+                          <td className="py-3 text-center">
+                            <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 text-[9px] font-black uppercase">
+                              {e.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

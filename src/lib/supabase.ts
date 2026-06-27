@@ -232,6 +232,59 @@ export interface JournalItem {
   costCenter?: string;
 }
 
+export interface CrmLead {
+  id: string;
+  tenantId: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  value: number;
+  stage: 'prospect' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost';
+  createdAt?: string;
+}
+
+export interface InventoryWarehouse {
+  id: string;
+  tenantId: string;
+  name: string;
+  location?: string;
+}
+
+export interface InventoryBatch {
+  id: string;
+  tenantId: string;
+  productId: string;
+  warehouseId: string;
+  batchNumber: string;
+  qty: number;
+  expiryDate?: string;
+}
+
+export interface HelpdeskTicket {
+  id: string;
+  tenantId: string;
+  customerName: string;
+  customerEmail: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'pending' | 'resolved';
+  priority: 'low' | 'medium' | 'high';
+  createdAt?: string;
+}
+
+export interface HrEmployee {
+  id: string;
+  tenantId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  salary: number;
+  hireDate?: string;
+  status: 'active' | 'inactive';
+}
+
 export interface WhiteLabelSettings {
   tenantId: string;
   logoUrl?: string;
@@ -707,7 +760,7 @@ const INITIAL_API_KEYS: ApiKey[] = [
 ];
 
 class SupabaseMock {
-  private getStorage<T>(key: string, defaultVal: T): T {
+  public getStorage<T>(key: string, defaultVal: T): T {
     if (typeof window === 'undefined') return defaultVal;
     const item = localStorage.getItem(key);
     if (!item) return defaultVal;
@@ -720,7 +773,7 @@ class SupabaseMock {
     }
   }
 
-  private setStorage<T>(key: string, value: T) {
+  public setStorage<T>(key: string, value: T) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(key, JSON.stringify(value));
     }
@@ -1172,6 +1225,85 @@ class SupabaseMock {
     const filtered = allActive.filter((ta: TenantActiveApp) => ta.tenantId !== tenantId);
     this.setStorage('mock_tenant_active_apps', [...filtered, ...apps]);
   }
+
+  // CRM Leads methods
+  getCrmLeads(tenantId: string): CrmLead[] {
+    const all = this.getStorage('mock_crm_leads', [
+      { id: 'lead-1', tenantId, name: 'Juan González', company: 'González Distribuidora', email: 'juan@gonzalez.com', phone: '+56987654321', value: 5000.00, stage: 'prospect' as const },
+      { id: 'lead-2', tenantId, name: 'María Rodríguez', company: 'Rodríguez Retail', email: 'maria@rodriguez.com', phone: '+56912345678', value: 12000.00, stage: 'proposal' as const }
+    ]);
+    return all.filter((l: any) => l.tenantId === tenantId);
+  }
+
+  saveCrmLeads(tenantId: string, leads: CrmLead[]) {
+    const all = this.getStorage('mock_crm_leads', []);
+    const filtered = all.filter((l: any) => l.tenantId !== tenantId);
+    this.setStorage('mock_crm_leads', [...filtered, ...leads]);
+    syncTableToSupabase('crm_leads', leads);
+  }
+
+  // Inventory Warehouse methods
+  getWarehouses(tenantId: string): InventoryWarehouse[] {
+    const all = this.getStorage('mock_warehouses', [
+      { id: 'wh-central', tenantId, name: 'Bodega Central Celeste', location: 'Av. Vitacura 2300, Santiago' },
+      { id: 'wh-sucursal', tenantId, name: 'Almacén Sucursal Providencia', location: 'Av. Providencia 1450, Santiago' }
+    ]);
+    return all.filter((w: any) => w.tenantId === tenantId);
+  }
+
+  saveWarehouses(tenantId: string, warehouses: InventoryWarehouse[]) {
+    const all = this.getStorage('mock_warehouses', []);
+    const filtered = all.filter((w: any) => w.tenantId !== tenantId);
+    this.setStorage('mock_warehouses', [...filtered, ...warehouses]);
+    syncTableToSupabase('inventory_warehouses', warehouses);
+  }
+
+  // Inventory Batches methods
+  getBatches(tenantId: string): InventoryBatch[] {
+    const all = this.getStorage('mock_batches', [
+      { id: 'batch-1', tenantId, productId: 'prod-1', warehouseId: 'wh-central', batchNumber: 'LOT-9988', qty: 5, expiryDate: '2027-12-31' }
+    ]);
+    return all.filter((b: any) => b.tenantId === tenantId);
+  }
+
+  saveBatches(tenantId: string, batches: InventoryBatch[]) {
+    const all = this.getStorage('mock_batches', []);
+    const filtered = all.filter((b: any) => b.tenantId !== tenantId);
+    this.setStorage('mock_batches', [...filtered, ...batches]);
+    syncTableToSupabase('inventory_batches', batches);
+  }
+
+  // Helpdesk Tickets methods
+  getHelpdeskTickets(tenantId: string): HelpdeskTicket[] {
+    const all = this.getStorage('mock_helpdesk_tickets', [
+      { id: 'tkt-1', tenantId, customerName: 'Pedro Soto', customerEmail: 'pedro@soto.com', subject: 'Falla de sincronización POS', description: 'La caja registradora no sincroniza el stock local.', status: 'open' as const, priority: 'high' as const },
+      { id: 'tkt-2', tenantId, customerName: 'Lucía Díaz', customerEmail: 'lucia@diaz.com', subject: 'Duda de acceso al curso', description: 'No puedo ver el módulo 3 del curso de administración.', status: 'pending' as const, priority: 'medium' as const }
+    ]);
+    return all.filter((t: any) => t.tenantId === tenantId);
+  }
+
+  saveHelpdeskTickets(tenantId: string, tickets: HelpdeskTicket[]) {
+    const all = this.getStorage('mock_helpdesk_tickets', []);
+    const filtered = all.filter((t: any) => t.tenantId !== tenantId);
+    this.setStorage('mock_helpdesk_tickets', [...filtered, ...tickets]);
+    syncTableToSupabase('helpdesk_tickets', tickets);
+  }
+
+  // HR Employees methods
+  getEmployees(tenantId: string): HrEmployee[] {
+    const all = this.getStorage('mock_employees', [
+      { id: 'emp-1', tenantId, firstName: 'Carlos', lastName: 'Gómez', email: 'carlos@celeste.com', role: 'Manager', salary: 2500.00, hireDate: '2025-01-15', status: 'active' as const },
+      { id: 'emp-2', tenantId, firstName: 'Sofía', lastName: 'Pérez', email: 'sofia@celeste.com', role: 'Cashier', salary: 1200.00, hireDate: '2025-03-10', status: 'active' as const }
+    ]);
+    return all.filter((e: any) => e.tenantId === tenantId);
+  }
+
+  saveEmployees(tenantId: string, employees: HrEmployee[]) {
+    const all = this.getStorage('mock_employees', []);
+    const filtered = all.filter((e: any) => e.tenantId !== tenantId);
+    this.setStorage('mock_employees', [...filtered, ...employees]);
+    syncTableToSupabase('hr_employees', employees);
+  }
 }
 
 export const dbAdapter = new SupabaseMock();
@@ -1374,6 +1506,59 @@ const EDUCATION_MEMBER_MAP = {
   role: 'role'
 };
 
+const CRM_LEAD_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  company: 'company',
+  email: 'email',
+  phone: 'phone',
+  value: 'value',
+  stage: 'stage',
+  createdAt: 'created_at'
+};
+
+const WAREHOUSE_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  location: 'location'
+};
+
+const BATCH_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  productId: 'product_id',
+  warehouseId: 'warehouse_id',
+  batchNumber: 'batch_number',
+  qty: 'qty',
+  expiryDate: 'expiry_date'
+};
+
+const TICKET_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  customerName: 'customer_name',
+  customerEmail: 'customer_email',
+  subject: 'subject',
+  description: 'description',
+  status: 'status',
+  priority: 'priority',
+  createdAt: 'created_at'
+};
+
+const EMPLOYEE_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  firstName: 'first_name',
+  lastName: 'last_name',
+  email: 'email',
+  role: 'role',
+  salary: 'salary',
+  hireDate: 'hire_date',
+  status: 'status'
+};
+
 function mapToDb(obj: any, map: Record<string, string>, extra: any = {}) {
   const result: any = { ...extra };
   for (const [localKey, dbKey] of Object.entries(map)) {
@@ -1419,7 +1604,12 @@ async function syncTableToSupabase(tableKey: string, localItems: any[]) {
     partners_resellers: { dbTable: 'partners_resellers', map: PARTNER_MAP, tenantIdField: 'none' },
     reseller_licenses: { dbTable: 'reseller_licenses', map: LICENSE_MAP, tenantIdField: 'none' },
     education_schools: { dbTable: 'education_schools', map: EDUCATION_SCHOOL_MAP, tenantIdField: 'tenant_id' },
-    education_members: { dbTable: 'education_members', map: EDUCATION_MEMBER_MAP, tenantIdField: 'tenant_id' }
+    education_members: { dbTable: 'education_members', map: EDUCATION_MEMBER_MAP, tenantIdField: 'tenant_id' },
+    crm_leads: { dbTable: 'crm_leads', map: CRM_LEAD_MAP, tenantIdField: 'tenant_id' },
+    inventory_warehouses: { dbTable: 'inventory_warehouses', map: WAREHOUSE_MAP, tenantIdField: 'tenant_id' },
+    inventory_batches: { dbTable: 'inventory_batches', map: BATCH_MAP, tenantIdField: 'tenant_id' },
+    helpdesk_tickets: { dbTable: 'helpdesk_tickets', map: TICKET_MAP, tenantIdField: 'tenant_id' },
+    hr_employees: { dbTable: 'hr_employees', map: EMPLOYEE_MAP, tenantIdField: 'tenant_id' }
   };
 
   const config = MAPS[tableKey];
@@ -1624,6 +1814,36 @@ async function syncFromSupabase() {
     const { data: dbEduMembers } = await supabase.from('education_members').select('*').eq('tenant_id', activeTenantId);
     if (dbEduMembers) {
       localStorage.setItem('mock_education_members', JSON.stringify(dbEduMembers.map(m => mapToLocal(m, EDUCATION_MEMBER_MAP))));
+    }
+
+    // Sync crm_leads
+    const { data: dbLeads } = await supabase.from('crm_leads').select('*').eq('tenant_id', activeTenantId);
+    if (dbLeads) {
+      localStorage.setItem('mock_crm_leads', JSON.stringify(dbLeads.map(l => mapToLocal(l, CRM_LEAD_MAP))));
+    }
+
+    // Sync inventory_warehouses
+    const { data: dbWarehouses } = await supabase.from('inventory_warehouses').select('*').eq('tenant_id', activeTenantId);
+    if (dbWarehouses) {
+      localStorage.setItem('mock_warehouses', JSON.stringify(dbWarehouses.map(w => mapToLocal(w, WAREHOUSE_MAP))));
+    }
+
+    // Sync inventory_batches
+    const { data: dbBatches } = await supabase.from('inventory_batches').select('*').eq('tenant_id', activeTenantId);
+    if (dbBatches) {
+      localStorage.setItem('mock_batches', JSON.stringify(dbBatches.map(b => mapToLocal(b, BATCH_MAP))));
+    }
+
+    // Sync helpdesk_tickets
+    const { data: dbTickets } = await supabase.from('helpdesk_tickets').select('*').eq('tenant_id', activeTenantId);
+    if (dbTickets) {
+      localStorage.setItem('mock_helpdesk_tickets', JSON.stringify(dbTickets.map(t => mapToLocal(t, TICKET_MAP))));
+    }
+
+    // Sync hr_employees
+    const { data: dbEmployees } = await supabase.from('hr_employees').select('*').eq('tenant_id', activeTenantId);
+    if (dbEmployees) {
+      localStorage.setItem('mock_employees', JSON.stringify(dbEmployees.map(e => mapToLocal(e, EMPLOYEE_MAP))));
     }
 
     // Dispatch reload event to all client listeners
