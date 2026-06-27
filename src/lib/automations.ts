@@ -7,6 +7,7 @@ interface WorkflowData {
   paymentMethod?: string;
   customerEmail?: string;
   customerName?: string;
+  customerPhone?: string;
   formData?: Record<string, string>;
 }
 
@@ -48,8 +49,38 @@ export async function triggerWorkflows(
         }
 
         if (action === 'send_whatsapp') {
-          // WhatsApp via Twilio — activar después
-          console.log('[WHATSAPP PENDING] Would send WhatsApp to customer');
+          const accountSid = process.env.TWILIO_ACCOUNT_SID;
+          const authToken = process.env.TWILIO_AUTH_TOKEN;
+          const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || '+14155238886';
+          const toPhone = data.customerPhone || data.formData?.phone || '';
+
+          if (accountSid && authToken && toPhone) {
+            const bodyParams = new URLSearchParams();
+            bodyParams.append('To', `whatsapp:${toPhone}`);
+            bodyParams.append('From', `whatsapp:${fromNumber}`);
+            bodyParams.append('Body', getWhatsAppMessage(triggerEvent, data));
+
+            const auth = btoa(`${accountSid}:${authToken}`);
+
+            const twilioRes = await fetch(
+              `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Basic ${auth}`,
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: bodyParams.toString(),
+              }
+            );
+
+            if (!twilioRes.ok) {
+              const errTxt = await twilioRes.text();
+              console.error('[TWILIO HTTP ERROR]', errTxt);
+            }
+          } else {
+            console.log('[WHATSAPP MOCK] Would send WhatsApp to:', toPhone || 'no-phone');
+          }
         }
 
         if (action === 'sync_crm_webhook' && workflow.webhook_url) {
@@ -83,6 +114,16 @@ function getEmailSubject(triggerEvent: string): string {
     reservation_created: '📅 Reserva confirmada',
   };
   return subjects[triggerEvent] || 'Notificación de SASWEBS';
+}
+
+function getWhatsAppMessage(triggerEvent: string, data: WorkflowData): string {
+  if (triggerEvent === 'pos_sale') {
+    return `✅ ¡Gracias por tu compra! Tu orden #${data.orderId} por un total de $${data.total} ha sido confirmada.`;
+  }
+  if (triggerEvent === 'reservation_created') {
+    return `📅 Tu reserva ha sido confirmada para la fecha y hora seleccionada. ¡Te esperamos!`;
+  }
+  return `Notificación automática de SASWEBS.`;
 }
 
 function buildEmailHTML(triggerEvent: string, data: WorkflowData): string {
