@@ -11,6 +11,7 @@ import {
   Book, Coins, Briefcase, Building, Award, FileSpreadsheet, Boxes, FileSignature, Wallet
 } from 'lucide-react';
 import Link from 'next/link';
+import { hasPermission, getAllowedTabs, PERMISSIONS, type Permission } from '@/core/rbac';
 
 export default function DashboardPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -340,7 +341,7 @@ export default function DashboardPage() {
   // ==================== [NEW] CONTABILIDAD PRO HANDLERS ====================
   const handleAddAccount = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
     if (!newAccCode || !newAccName || !tenant) return;
     const newAcc = {
       id: 'acc-' + Date.now(),
@@ -362,7 +363,7 @@ export default function DashboardPage() {
 
   const handleCreateJournalEntry = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
     if (!newJeDesc || !tenant) return;
 
     // Validate double entry ledger rule: Sum(Debit) == Sum(Credit)
@@ -421,7 +422,7 @@ export default function DashboardPage() {
   // ==================== [NEW] WHITE LABEL HANDLERS ====================
   const handleSaveWhiteLabel = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_WHITELABEL_MANAGE)) return;
     if (!tenant) return;
     const wl = {
       tenantId: tenant.id,
@@ -442,7 +443,7 @@ export default function DashboardPage() {
   // ==================== [NEW] EDUCACION HANDLERS ====================
   const handleAddSchool = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.LMS_SCHOOLS_MANAGE)) return;
     if (!newSchoolName || !tenant) return;
     const newSch = {
       id: 'sch-' + Date.now(),
@@ -460,7 +461,7 @@ export default function DashboardPage() {
 
   const handleAddEducationMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.LMS_STUDENTS_ENROLL)) return;
     if (!newMemberName || !tenant) return;
     const newMem = {
       id: 'em-' + Date.now(),
@@ -481,7 +482,7 @@ export default function DashboardPage() {
   // CRM Form Actions
   const handleAddLead = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.CRM_CONTACTS_WRITE)) return;
     if (!newLeadName || !tenant) return;
     const newL = {
       id: 'lead-' + Date.now(),
@@ -506,7 +507,7 @@ export default function DashboardPage() {
   };
 
   const handleUpdateLeadStage = (id: string, stage: 'prospect' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost') => {
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.CRM_PIPELINE_MANAGE)) return;
     if (!tenant) return;
     const updated = leads.map(l => l.id === id ? { ...l, stage } : l);
     setLeads(updated);
@@ -516,7 +517,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteLead = (id: string) => {
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.CRM_CONTACTS_DELETE)) return;
     if (!tenant) return;
     const updated = leads.filter(l => l.id !== id);
     setLeads(updated);
@@ -528,7 +529,7 @@ export default function DashboardPage() {
   // Warehouse Form Actions
   const handleAddWarehouse = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.PRODUCTS_CREATE)) return;
     if (!newWhName || !tenant) return;
     const newW = {
       id: 'wh-' + Date.now(),
@@ -548,7 +549,7 @@ export default function DashboardPage() {
   // Batch Form Actions
   const handleAddBatch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.INVENTORY_ADJUST)) return;
     if (!newBatchProductId || !newBatchWhId || !newBatchNum || !tenant) return;
     const newB = {
       id: 'batch-' + Date.now(),
@@ -581,7 +582,7 @@ export default function DashboardPage() {
 
   // Fulfillment Actions
   const handleUpdateShippingStatus = (orderId: string, status: 'pending' | 'packing' | 'shipped' | 'delivered') => {
-    if (!verifyPermission(['owner', 'manager', 'cajero'])) return;
+    if (!verifyPermission(PERMISSIONS.SALES_ORDERS_APPROVE)) return;
     if (!tenant) return;
     
     const savedOrders = dbAdapter.getStorage('mock_orders', []);
@@ -626,7 +627,7 @@ export default function DashboardPage() {
   };
 
   const handleUpdateTicketStatus = (id: string, status: 'open' | 'pending' | 'resolved') => {
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_AUDIT_READ)) return;
     if (!tenant) return;
     const updated = tickets.map(t => t.id === id ? { ...t, status } : t);
     setTickets(updated);
@@ -638,7 +639,7 @@ export default function DashboardPage() {
   // HR & Payroll Actions
   const handleAddEmployee = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_USERS_CREATE)) return;
     if (!newEmpFirst || !newEmpEmail || !tenant) return;
     const newEmp = {
       id: 'emp-' + Date.now(),
@@ -665,7 +666,7 @@ export default function DashboardPage() {
   };
 
   const handleRunPayroll = () => {
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_USERS_ASSIGN_ROLES)) return;
     if (!tenant) return;
 
     const activeStaff = employees.filter(e => e.status === 'active');
@@ -730,9 +731,14 @@ export default function DashboardPage() {
     reloadAllData();
   };
 
-  const verifyPermission = (allowedRoles: Array<'owner' | 'manager' | 'cajero' | 'invitado'>) => {
-    if (!allowedRoles.includes(activeRole)) {
-      alert(`Acceso denegado: Tu rol actual es [${activeRole}]. Requiere permisos más elevados.`);
+  const verifyPermission = (permission: Permission) => {
+    const userSession = {
+      id: 'session-user',
+      email: sessionUser?.email || `${activeRole}@tenant.com`,
+      role: activeRole,
+    };
+    if (!hasPermission(userSession, permission)) {
+      alert(`Acceso denegado: Tu rol [${activeRole}] no cuenta con el permiso requerido [${permission}].`);
       return false;
     }
     if (isGuestMode) {
@@ -743,7 +749,7 @@ export default function DashboardPage() {
   };
 
   const handleVerifyDns = () => {
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_SETTINGS_WRITE)) return;
     if (!customDomain) {
       alert('Por favor introduce un dominio personalizado primero (ej. www.suempresa.com).');
       return;
@@ -787,7 +793,7 @@ export default function DashboardPage() {
   };
 
   const handlePublish = () => {
-    if (!verifyPermission(['owner', 'manager', 'cajero'])) return;
+    if (!verifyPermission(PERMISSIONS.WEBSITE_PAGES_PUBLISH)) return;
     setIsPublishing(true);
     setTimeout(() => {
       setIsPublishing(false);
@@ -800,7 +806,7 @@ export default function DashboardPage() {
   };
 
   const handleInstallModule = (moduleKey: 'isEcommerceEnabled' | 'isPosEnabled' | 'isLmsEnabled' | 'isReservasEnabled', label: string) => {
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_MODULES_TOGGLE)) return;
     if (!tenant) return;
     setInstallingModule(label);
     setIsInstalling(true);
@@ -830,12 +836,12 @@ export default function DashboardPage() {
         '⏰ Configurando intervalos de atención y horarios...',
         '🔓 Módulo de reservas y calendarios desbloqueados con éxito!'
       ]
-    };
+    }[moduleKey];
 
     const runSteps = (idx: number) => {
-      if (idx < steps[moduleKey].length) {
+      if (idx < steps.length) {
         setTimeout(() => {
-          setInstallLogs(prev => [...prev, steps[moduleKey][idx]]);
+          setInstallLogs(prev => [...prev, steps[idx]]);
           runSteps(idx + 1);
         }, 600);
       } else {
@@ -860,7 +866,7 @@ export default function DashboardPage() {
   };
 
   const handleUninstallModule = (moduleKey: 'isEcommerceEnabled' | 'isPosEnabled' | 'isLmsEnabled' | 'isReservasEnabled', label: string) => {
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_MODULES_TOGGLE)) return;
     if (!tenant) return;
     if (confirm(`¿Estás seguro de que deseas desinstalar el módulo "${label}"? Se ocultarán los bloques correspondientes en el constructor.`)) {
       const updated: Tenant = { ...tenant, [moduleKey]: false };
@@ -874,7 +880,7 @@ export default function DashboardPage() {
   };
 
   const handleSaveSettings = () => {
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_SETTINGS_WRITE)) return;
     if (!tenant) return;
     const updated: Tenant = { 
       ...tenant, 
@@ -893,7 +899,7 @@ export default function DashboardPage() {
 
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.PRODUCTS_CREATE)) return;
     if (!prodName || !prodPrice || !prodBarcode) return;
     const newP: Product = {
       id: 'p-' + Date.now(),
@@ -918,7 +924,7 @@ export default function DashboardPage() {
 
   const handleAddCourse = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.LMS_COURSES_CREATE)) return;
     if (!courseTitle || !courseDesc || !coursePrice) return;
     const newC: Course = {
       id: 'c-' + Date.now(),
@@ -945,7 +951,7 @@ export default function DashboardPage() {
   // 1. DYNAMIC CMS: Add Collection (Visual DB Builder)
   const handleAddCollection = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.CMS_COLLECTIONS_MANAGE)) return;
     if (!newColName || !newColSlug) return;
     if (!tenant) return;
     if (dbBuilderFields.length === 0) {
@@ -976,7 +982,7 @@ export default function DashboardPage() {
   // 2. DYNAMIC CMS: Add Item
   const handleAddCmsItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.CMS_ITEMS_CREATE)) return;
     if (!selectedCollectionId) return;
     if (!tenant) return;
 
@@ -1005,7 +1011,7 @@ export default function DashboardPage() {
 
   // 3. AUTOMATION WORKFLOWS: Toggle Status
   const handleToggleWorkflow = (wfId: string) => {
-    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!verifyPermission(PERMISSIONS.WORKFLOWS_ACTIVATE)) return;
     if (!tenant) return;
     const allWfs = dbAdapter.getWorkflows();
     const match = allWfs.find(w => w.id === wfId);
@@ -1020,7 +1026,7 @@ export default function DashboardPage() {
   // 4. AUTOMATION WORKFLOWS: Add Workflow
   const handleAddWorkflow = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.WORKFLOWS_CREATE)) return;
     if (!newWfName || !tenant) return;
 
     const newWf: AutomationWorkflow = {
@@ -1042,7 +1048,7 @@ export default function DashboardPage() {
 
   // 5. INTEGRATIONS: Toggle connection
   const handleToggleIntegration = (intId: string) => {
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.INTEGRATIONS_CONNECT)) return;
     if (!tenant) return;
     const all = dbAdapter.getIntegrations();
     const match = all.find(i => i.id === intId);
@@ -1056,7 +1062,7 @@ export default function DashboardPage() {
 
   // 6. SAAS BILLING: Upgrade to Enterprise
   const handleUpgradePlan = () => {
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.COMPANY_BILLING_VIEW)) return;
     if (!tenant) return;
     if (confirm('¿Deseas actualizar tu suscripción al Plan Enterprise? Habilitará terminales POS ilimitadas y 100 páginas de maquetación.')) {
       const updatedTenants = dbAdapter.getTenants().map(t => {
@@ -1086,7 +1092,7 @@ export default function DashboardPage() {
   // 7. DEVELOPER API: Add API Key
   const handleAddApiKey = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.API_KEYS_CREATE)) return;
     if (!newKeyName || !tenant) return;
 
     const newKey: ApiKey = {
@@ -1108,7 +1114,7 @@ export default function DashboardPage() {
 
   // 8. DEVELOPER API: Add Webhook
   const handleAddWebhook = (keyId: string) => {
-    if (!verifyPermission(['owner'])) return;
+    if (!verifyPermission(PERMISSIONS.WEBHOOKS_MANAGE)) return;
     if (!webhookUrl || !tenant) return;
 
     const allKeys = dbAdapter.getApiKeys();
@@ -1483,31 +1489,25 @@ export default function DashboardPage() {
 
   if (!tenant) return null;
 
-  // Enforce Navigation Restriction based on RBAC roles
-  const allowedTabsByRole = {
-    owner: [
-      'analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'billing', 'audit', 'reports', 'api', 'franquicias',
-      'accounting_accounts', 'accounting_entries', 'accounting_reports', 'education_schools', 'education_members', 'whitelabel'
-    ],
-    manager: [
-      'analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'audit', 'reports', 'api', 'franquicias',
-      'accounting_accounts', 'accounting_entries', 'accounting_reports', 'education_schools', 'education_members'
-    ],
-    cajero: ['analytics', 'products', 'reservations', 'cms', 'reports'],
-    invitado: [
-      'analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'billing', 'audit', 'reports', 'api', 'franquicias',
-      'accounting_accounts', 'accounting_entries', 'accounting_reports', 'education_schools', 'education_members', 'whitelabel'
-    ]
-  };
-
+  // Enforce Navigation Restriction based on RBAC roles using core index
   const isTabVisible = (tabKey: any) => {
-    return allowedTabsByRole[activeRole].includes(tabKey);
+    const userSession = {
+      id: 'session-user',
+      email: sessionUser?.email || `${activeRole}@tenant.com`,
+      role: activeRole,
+    };
+    return getAllowedTabs(userSession).includes(tabKey);
   };
 
   // Auto-fallback if active tab gets restricted after changing activeRole
   const activeTabVisible = isTabVisible(activeTab);
   const fallbackTab = () => {
-    const visible = allowedTabsByRole[activeRole];
+    const userSession = {
+      id: 'session-user',
+      email: sessionUser?.email || `${activeRole}@tenant.com`,
+      role: activeRole,
+    };
+    const visible = getAllowedTabs(userSession);
     if (visible.length > 0) {
       setActiveTab(visible[0] as any);
     }
@@ -1923,7 +1923,7 @@ export default function DashboardPage() {
                       </div>
                       <button 
                         onClick={() => {
-                          if (!verifyPermission(['owner'])) return;
+                          if (!verifyPermission(PERMISSIONS.COMPANY_MODULES_TOGGLE)) return;
                           const all = dbAdapter.getTenants().map(t => t.id === tenant.id ? { ...t, [modKey]: !active } : t);
                           dbAdapter.saveTenants(all);
                           dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Toggle Módulo', `Toggle ${label} a ${!active}`);
@@ -2000,7 +2000,7 @@ export default function DashboardPage() {
                         <td className="py-3 text-right">
                           <button 
                             onClick={() => {
-                              if (!verifyPermission(['owner', 'manager'])) return;
+                              if (!verifyPermission(PERMISSIONS.PRODUCTS_DELETE)) return;
                               const updated = products.filter(item => item.id !== p.id);
                               setProducts(updated);
                               dbAdapter.saveProducts(updated);
@@ -2062,7 +2062,7 @@ export default function DashboardPage() {
                   <div key={c.id} className="p-4 border border-slate-100 rounded-2xl flex flex-col justify-between gap-4 bg-slate-50/20 relative">
                     <button 
                       onClick={() => {
-                        if (!verifyPermission(['owner', 'manager'])) return;
+                        if (!verifyPermission(PERMISSIONS.LMS_COURSES_CREATE)) return;
                         const updated = courses.filter(item => item.id !== c.id);
                         setCourses(updated);
                         dbAdapter.saveCourses(updated);
@@ -2304,7 +2304,7 @@ export default function DashboardPage() {
                             <td className="py-3 font-mono text-slate-400 text-[10px]">{item.id.slice(0, 12)}…</td>
                             {dbBuilderFields.map(f => <td key={f.name} className="py-3 font-bold text-slate-700">{item.data[f.name] || '-'}</td>)}
                             <td className="py-3 text-right">
-                              <button type="button" onClick={() => { if (!verifyPermission(['owner', 'manager'])) return; const upd = dbAdapter.getCmsItems().filter(i => i.id !== item.id); dbAdapter.saveCmsItems(upd); dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Eliminar Registro', `ID ${item.id}`); reloadAllData(); }} className="p-1 hover:bg-red-50 text-red-500 rounded">
+                              <button type="button" onClick={() => { if (!verifyPermission(PERMISSIONS.CMS_ITEMS_DELETE)) return; const upd = dbAdapter.getCmsItems().filter(i => i.id !== item.id); dbAdapter.saveCmsItems(upd); dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Eliminar Registro', `ID ${item.id}`); reloadAllData(); }} className="p-1 hover:bg-red-50 text-red-500 rounded">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </td>
@@ -2431,7 +2431,7 @@ export default function DashboardPage() {
                         <td className="py-3 font-black text-slate-800 capitalize">{module}</td>
                         {(['read', 'write', 'delete'] as const).map(perm => (
                           <td key={perm} className="py-3 text-center">
-                            <button type="button" onClick={() => { if (!verifyPermission(['owner'])) return; setRbacPolicies(prev => ({ ...prev, [module]: { ...prev[module], [perm]: !prev[module][perm] } })); dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Modificar RBAC', `${perm.toUpperCase()} en ${module} → ${!perms[perm]}`); }} className="inline-flex items-center justify-center">
+                            <button type="button" onClick={() => { if (!verifyPermission(PERMISSIONS.COMPANY_USERS_ASSIGN_ROLES)) return; setRbacPolicies(prev => ({ ...prev, [module]: { ...prev[module], [perm]: !prev[module][perm] } })); dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Modificar RBAC', `${perm.toUpperCase()} en ${module} → ${!perms[perm]}`); }} className="inline-flex items-center justify-center">
                               {perms[perm] ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <AlertOctagon className="w-5 h-5 text-slate-300" />}
                             </button>
                           </td>
@@ -2527,7 +2527,7 @@ export default function DashboardPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (!verifyPermission(['owner'])) return;
+                            if (!verifyPermission(PERMISSIONS.WORKFLOWS_DELETE)) return;
                             const updated = dbAdapter.getWorkflows().filter(w => w.id !== wf.id);
                             dbAdapter.saveWorkflows(updated);
                             dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Eliminar Workflow', `Workflow ${wf.id} eliminado`);
@@ -2631,7 +2631,7 @@ export default function DashboardPage() {
                       </div>
                       <button
                         onClick={() => {
-                          if (!verifyPermission(['owner'])) return;
+                          if (!verifyPermission(PERMISSIONS.INTEGRATIONS_CONNECT)) return;
                           const all = dbAdapter.getIntegrations();
                           const match = all.find(i => i.id === int.id);
                           if (match) {
@@ -2875,7 +2875,7 @@ export default function DashboardPage() {
                         </div>
                         <button
                           onClick={() => {
-                            if (!verifyPermission(['owner'])) return;
+                            if (!verifyPermission(PERMISSIONS.API_KEYS_REVOKE)) return;
                             const updated = dbAdapter.getApiKeys().filter(k => k.id !== key.id);
                             dbAdapter.saveApiKeys(updated);
                             dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Revocar Llave API', `Llave ${key.name} revocada.`);
