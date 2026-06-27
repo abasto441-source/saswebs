@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { createAdminClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 import { triggerWorkflows } from '@/lib/automations';

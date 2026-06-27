@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import React, { useState, useEffect, useRef } from 'react';
 import PageRenderer from '@/components/PageRenderer';
 import { dbAdapter, type Course, type Enrollment, type Tenant, type CustomerAccount } from '@/lib/supabase';
