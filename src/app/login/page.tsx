@@ -21,7 +21,7 @@ export default function LoginPage() {
   const [businessType, setBusinessType] = useState<'education' | 'tech'>('education');
   const [plan, setPlan] = useState<'Starter' | 'Pro' | 'Enterprise'>('Pro');
 
-  const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID');
+  const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
