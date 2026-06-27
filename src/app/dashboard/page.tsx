@@ -826,21 +826,360 @@ export default function DashboardPage() {
     }
   };
 
-  // 9. REPORTS: Export Mock File Utilities
-  const handleExportData = (format: 'pdf' | 'csv' | 'xls', datasetName: string, data: any) => {
-    alert(`[Motor de Reportes SaaS] Generando estructura y empaquetando archivo en formato .${format}...`);
-    
-    // Create actual simulated text blob
-    const content = `--- REPORTE ENTERPRISE MOCK: ${datasetName.toUpperCase()} ---\nFecha: ${new Date().toLocaleDateString()}\nFormato: ${format.toUpperCase()}\nInquilino: ${tenant?.name}\n\nDataset JSON:\n${JSON.stringify(data, null, 2)}`;
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte_${datasetName.toLowerCase()}_${Date.now()}.${format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Helper to generate CSV for accounting reports
+  const generateAccountingReportCSV = (datasetName: string, data: any): string => {
+    const { accounts, journalItems, journalEntries } = data;
+    let csv = '';
+
+    if (datasetName === 'Balance General') {
+      csv += `"BALANCE GENERAL CONSOLIDADO"\n`;
+      csv += `"Inquilino:","${tenant?.name}"\n`;
+      csv += `"Fecha:","${new Date().toLocaleDateString()}"\n\n`;
+      
+      csv += `"Tipo","Código","Nombre Cuenta","Saldo"\n`;
+      
+      ['activo', 'pasivo', 'patrimonio'].forEach((type) => {
+        const filteredAccs = accounts.filter((a: any) => a.type === type);
+        let typeTotal = 0;
+        
+        filteredAccs.forEach((acc: any) => {
+          const accItems = journalItems.filter((ji: any) => ji.accountId === acc.id);
+          const debits = accItems.reduce((s: number, i: any) => s + i.debit, 0);
+          const credits = accItems.reduce((s: number, i: any) => s + i.credit, 0);
+          const balance = type === 'activo' ? (debits - credits) : (credits - debits);
+          typeTotal += balance;
+          csv += `"${type.toUpperCase()}","${acc.code}","${acc.name}",${balance.toFixed(2)}\n`;
+        });
+        csv += `"${type.toUpperCase()} TOTAL",,,${typeTotal.toFixed(2)}\n\n`;
+      });
+    } else if (datasetName === 'Estado de Resultados') {
+      csv += `"ESTADO DE RESULTADOS (P&L)"\n`;
+      csv += `"Inquilino:","${tenant?.name}"\n`;
+      csv += `"Fecha:","${new Date().toLocaleDateString()}"\n\n`;
+      
+      csv += `"Tipo","Código","Nombre Cuenta","Saldo"\n`;
+      
+      let totalIngreso = 0;
+      let totalGasto = 0;
+      
+      ['ingreso', 'gasto'].forEach((type) => {
+        const filteredAccs = accounts.filter((a: any) => a.type === type);
+        let typeTotal = 0;
+        
+        filteredAccs.forEach((acc: any) => {
+          const accItems = journalItems.filter((ji: any) => ji.accountId === acc.id);
+          const debits = accItems.reduce((s: number, i: any) => s + i.debit, 0);
+          const credits = accItems.reduce((s: number, i: any) => s + i.credit, 0);
+          const balance = type === 'ingreso' ? (credits - debits) : (debits - credits);
+          typeTotal += balance;
+          csv += `"${type.toUpperCase()}","${acc.code}","${acc.name}",${balance.toFixed(2)}\n`;
+        });
+        
+        if (type === 'ingreso') totalIngreso = typeTotal;
+        else totalGasto = typeTotal;
+        
+        csv += `"${type.toUpperCase()} TOTAL",,,${typeTotal.toFixed(2)}\n\n`;
+      });
+      csv += `"UTILIDAD NETA (P&L)",,,${(totalIngreso - totalGasto).toFixed(2)}\n`;
+    } else if (datasetName === 'Libro Diario') {
+      csv += `"LIBRO DIARIO GENERAL"\n`;
+      csv += `"Inquilino:","${tenant?.name}"\n`;
+      csv += `"Fecha:","${new Date().toLocaleDateString()}"\n\n`;
+      
+      csv += `"Asiento ID","Fecha","Descripción","Código Cuenta","Nombre Cuenta","Debe","Haber","Centro Costo"\n`;
+      
+      journalEntries.forEach((je: any) => {
+        const jeItems = journalItems.filter((ji: any) => ji.entryId === je.id);
+        jeItems.forEach((ji: any) => {
+          const acc = accounts.find((a: any) => a.id === ji.accountId);
+          csv += `"${je.id}","${je.entryDate}","${je.description}","${acc ? acc.code : ''}","${acc ? acc.name : ji.accountId}",${ji.debit.toFixed(2)},${ji.credit.toFixed(2)},"${ji.costCenter || ''}"\n`;
+        });
+      });
+    }
+
+    return csv;
   };
+
+  const generatePOSReportCSV = (datasetName: string, data: any): string => {
+    let csv = `"REPORTE DE ${datasetName.toUpperCase()}"\n`;
+    csv += `"Inquilino:","${tenant?.name}"\n`;
+    csv += `"Fecha:","${new Date().toLocaleDateString()}"\n\n`;
+
+    if (datasetName === 'ventas_pos' || datasetName === 'products') {
+      csv += `"ID","Nombre","Precio","Stock","Categoría","Código Barras"\n`;
+      data.forEach((prod: any) => {
+        csv += `"${prod.id}","${prod.name}",${prod.price.toFixed(2)},${prod.stock},"${prod.category}","${prod.barcode}"\n`;
+      });
+    } else {
+      csv += `"ID","Curso/Matrícula","Detalle","Progreso"\n`;
+      data.forEach((row: any) => {
+        csv += `"${row.id}","${row.courseId || ''}","${row.lessonsCompleted?.join(';') || ''}",${row.progress || 0}\n`;
+      });
+    }
+    return csv;
+  };
+
+  const generatePDFPrintView = (datasetName: string, data: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let htmlContent = `
+      <html>
+        <head>
+          <title>Reporte - ${datasetName}</title>
+          <style>
+            body { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; padding: 40px; margin: 0; }
+            h1 { font-size: 24px; font-weight: 900; color: #0f172a; margin-bottom: 5px; }
+            h2 { font-size: 14px; font-weight: bold; color: #64748b; margin-top: 0; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 1px; }
+            .header-table { width: 100%; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
+            .header-label { font-weight: bold; color: #475569; font-size: 12px; }
+            .header-value { color: #0284c7; font-weight: bold; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+            th { border-bottom: 2px solid #cbd5e1; padding: 10px; text-align: left; font-weight: bold; color: #475569; }
+            td { border-bottom: 1px solid #e2e8f0; padding: 10px; color: #334155; }
+            .text-right { text-align: right; }
+            .font-mono { font-family: monospace; font-size: 13px; font-weight: bold; }
+            .total-row { background-color: #f8fafc; font-weight: bold; border-top: 2px solid #e2e8f0; }
+            .accent { color: #0284c7; font-weight: 900; }
+            .pl-4 { padding-left: 24px; }
+            .mb-8 { margin-bottom: 32px; }
+            @media print {
+              body { padding: 20px; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+              <h1>${datasetName.toUpperCase()}</h1>
+              <h2>NRAM360 ERP Contabilidad PRO</h2>
+            </div>
+            <button onclick="window.print()" style="padding: 10px 20px; background-color: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">Imprimir / Guardar PDF</button>
+          </div>
+          
+          <table class="header-table">
+            <tr>
+              <td class="header-label" style="border:none; padding: 4px 0;">Empresa / Inquilino:</td>
+              <td class="header-value" style="border:none; padding: 4px 0;">${tenant?.name}</td>
+              <td class="header-label" style="border:none; padding: 4px 0; text-align:right;">Fecha Emisión:</td>
+              <td class="header-value" style="border:none; padding: 4px 0; text-align:right;">${new Date().toLocaleDateString()}</td>
+            </tr>
+            <tr>
+              <td class="header-label" style="border:none; padding: 4px 0;">Plan SaaS:</td>
+              <td class="header-value" style="border:none; padding: 4px 0;">Plan ${tenant?.plan}</td>
+              <td class="header-label" style="border:none; padding: 4px 0; text-align:right;">Estado:</td>
+              <td class="header-value" style="border:none; padding: 4px 0; text-align:right; color:#16a34a;">OFICIAL ASENTADO</td>
+            </tr>
+          </table>
+    `;
+
+    if (datasetName === 'Balance General') {
+      const { accounts, journalItems } = data;
+      htmlContent += `
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cuenta Contable</th>
+              <th class="text-right">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      ['activo', 'pasivo', 'patrimonio'].forEach((type) => {
+        const filteredAccs = accounts.filter((a: any) => a.type === type);
+        const typeTotal = filteredAccs.reduce((sum: number, acc: any) => {
+          const accItems = journalItems.filter((ji: any) => ji.accountId === acc.id);
+          const debits = accItems.reduce((s: number, i: any) => s + i.debit, 0);
+          const credits = accItems.reduce((s: number, i: any) => s + i.credit, 0);
+          return sum + (type === 'activo' ? (debits - credits) : (credits - debits));
+        }, 0);
+
+        htmlContent += `
+          <tr style="background-color: #f1f5f9; font-weight: bold;">
+            <td colspan="2" style="text-transform: uppercase;">${type}s</td>
+            <td class="text-right font-mono">$${typeTotal.toFixed(2)}</td>
+          </tr>
+        `;
+
+        filteredAccs.forEach((acc: any) => {
+          const accItems = journalItems.filter((ji: any) => ji.accountId === acc.id);
+          const debits = accItems.reduce((s: number, i: any) => s + i.debit, 0);
+          const credits = accItems.reduce((s: number, i: any) => s + i.credit, 0);
+          const balance = type === 'activo' ? (debits - credits) : (credits - debits);
+
+          htmlContent += `
+            <tr>
+              <td>${acc.code}</td>
+              <td class="${acc.parentId ? 'pl-4' : 'accent'}">${acc.name}</td>
+              <td class="text-right font-mono">$${balance.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+      });
+
+      htmlContent += `
+          </tbody>
+        </table>
+      `;
+    } else if (datasetName === 'Estado de Resultados') {
+      const { accounts, journalItems } = data;
+      let totalIngreso = 0;
+      let totalGasto = 0;
+
+      htmlContent += `
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cuenta Contable</th>
+              <th class="text-right">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      ['ingreso', 'gasto'].forEach((type) => {
+        const filteredAccs = accounts.filter((a: any) => a.type === type);
+        const typeTotal = filteredAccs.reduce((sum: number, acc: any) => {
+          const accItems = journalItems.filter((ji: any) => ji.accountId === acc.id);
+          const debits = accItems.reduce((s: number, i: any) => s + i.debit, 0);
+          const credits = accItems.reduce((s: number, i: any) => s + i.credit, 0);
+          return sum + (type === 'ingreso' ? (credits - debits) : (debits - credits));
+        }, 0);
+
+        if (type === 'ingreso') totalIngreso = typeTotal;
+        else totalGasto = typeTotal;
+
+        htmlContent += `
+          <tr style="background-color: #f1f5f9; font-weight: bold;">
+            <td colspan="2" style="text-transform: uppercase;">${type}s</td>
+            <td class="text-right font-mono">$${typeTotal.toFixed(2)}</td>
+          </tr>
+        `;
+
+        filteredAccs.forEach((acc: any) => {
+          const accItems = journalItems.filter((ji: any) => ji.accountId === acc.id);
+          const debits = accItems.reduce((s: number, i: any) => s + i.debit, 0);
+          const credits = accItems.reduce((s: number, i: any) => s + i.credit, 0);
+          const balance = type === 'ingreso' ? (credits - debits) : (debits - credits);
+
+          htmlContent += `
+            <tr>
+              <td>${acc.code}</td>
+              <td class="${acc.parentId ? 'pl-4' : 'accent'}">${acc.name}</td>
+              <td class="text-right font-mono">$${balance.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+      });
+
+      const netProfit = totalIngreso - totalGasto;
+      htmlContent += `
+            <tr style="background-color: #e0f2fe; font-weight: bold; border-top: 2px solid #0284c7;">
+              <td colspan="2" style="font-size: 14px; text-transform: uppercase; color:#0f172a;">UTILIDAD NETA DE EJERCICIO (P&L)</td>
+              <td class="text-right font-mono" style="font-size: 14px; color:#0284c7;">$${netProfit.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    } else if (datasetName === 'Libro Diario') {
+      const { journalEntries, journalItems, accounts } = data;
+      
+      journalEntries.forEach((je: any) => {
+        const jeItems = journalItems.filter((ji: any) => ji.entryId === je.id);
+        const jeTotal = jeItems.reduce((acc: number, i: any) => acc + i.debit, 0);
+
+        htmlContent += `
+          <div class="mb-8" style="page-break-inside: avoid; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <div style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="font-family: monospace; color:#94a3b8; font-size:10px; letter-spacing: 1px;">ASIENTO: ${je.id}</span>
+                <div style="font-weight: bold; color: #1e293b; font-size: 13px; margin-top: 2px;">${je.description}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-family: monospace; font-weight: bold; color: #64748b; font-size: 12px;">${je.entryDate}</div>
+                <div style="font-size: 11px; font-weight: 800; color: #16a34a; margin-top: 2px;">Asentado: $${jeTotal.toFixed(2)}</div>
+              </div>
+            </div>
+            <div style="padding: 15px;">
+              <table style="margin-top: 0;">
+                <thead>
+                  <tr style="border-bottom: 1px solid #cbd5e1;">
+                    <th style="padding: 6px 10px;">Código Cuenta</th>
+                    <th style="padding: 6px 10px;">Nombre Cuenta</th>
+                    <th style="padding: 6px 10px;" class="text-right">Debe</th>
+                    <th style="padding: 6px 10px;" class="text-right">Haber</th>
+                    <th style="padding: 6px 10px;" class="text-right">C. Costo</th>
+                  </tr>
+                </thead>
+                <tbody>
+          `;
+
+          jeItems.forEach((ji: any) => {
+            const acc = accounts.find((a: any) => a.id === ji.accountId);
+            htmlContent += `
+              <tr>
+                <td>${acc ? acc.code : ''}</td>
+                <td style="font-weight: bold;">${acc ? acc.name : ji.accountId}</td>
+                <td class="text-right font-mono">${ji.debit > 0 ? `$${ji.debit.toFixed(2)}` : '-'}</td>
+                <td class="text-right font-mono">${ji.credit > 0 ? `$${ji.credit.toFixed(2)}` : '-'}</td>
+                <td class="text-right" style="color: #94a3b8;">${ji.costCenter || '-'}</td>
+              </tr>
+            `;
+          });
+
+          htmlContent += `
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      htmlContent += `
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    };
+
+    // 9. REPORTS: Export Mock/Real File Utilities
+    const handleExportData = (format: 'pdf' | 'csv' | 'xls', datasetName: string, data: any) => {
+      let content = '';
+      let mimeType = 'text/plain;charset=utf-8';
+      let fileExtension = format;
+
+      if (format === 'pdf') {
+        generatePDFPrintView(datasetName, data);
+        return;
+      }
+
+      if (format === 'csv' || format === 'xls') {
+        mimeType = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/vnd.ms-excel;charset=utf-8';
+        fileExtension = format === 'csv' ? 'csv' : 'xls';
+
+        if (datasetName === 'Balance General' || datasetName === 'Estado de Resultados' || datasetName === 'Libro Diario') {
+          content = generateAccountingReportCSV(datasetName, data);
+        } else {
+          content = generatePOSReportCSV(datasetName, data);
+        }
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte_${datasetName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.${fileExtension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
 
   if (!tenant) return null;
 
@@ -2755,7 +3094,13 @@ export default function DashboardPage() {
             </div>
 
             <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
-              <span className="font-extrabold text-sm text-slate-800 block mb-4">Libro Diario General (Journal Entries)</span>
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-extrabold text-sm text-slate-800">Libro Diario General (Journal Entries)</span>
+                <div className="flex gap-1">
+                  <button onClick={() => handleExportData('xls', 'Libro Diario', { journalEntries, journalItems, accounts })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => handleExportData('pdf', 'Libro Diario', { journalEntries, journalItems, accounts })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
               <div className="space-y-4">
                 {journalEntries.map((je) => {
                   const jeItems = journalItems.filter(ji => ji.entryId === je.id);
@@ -2815,7 +3160,8 @@ export default function DashboardPage() {
                 <div className="flex justify-between items-center mb-5">
                   <span className="font-extrabold text-sm text-slate-800">Balance General (Consolidado)</span>
                   <div className="flex gap-1">
-                    <button onClick={() => handleExportData('xls', 'Balance General', accounts)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700"><Download className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleExportData('xls', 'Balance General', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleExportData('pdf', 'Balance General', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -2858,7 +3204,8 @@ export default function DashboardPage() {
                 <div className="flex justify-between items-center mb-5">
                   <span className="font-extrabold text-sm text-slate-800">Estado de Resultados (P&L)</span>
                   <div className="flex gap-1">
-                    <button onClick={() => handleExportData('xls', 'Estado de Resultados', accounts)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700"><Download className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleExportData('xls', 'Estado de Resultados', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleExportData('pdf', 'Estado de Resultados', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
                 <div className="space-y-4">
