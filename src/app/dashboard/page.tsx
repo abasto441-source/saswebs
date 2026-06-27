@@ -7,7 +7,8 @@ import {
   ArrowRight, Globe, Check, Plus, Trash2, Edit, Save, RefreshCw, BarChart2, Users,
   Grid, Calendar, CreditCard, Truck, Zap, Activity, Cpu, Key, Play, AlertCircle,
   FileText, Shield, List, Workflow, Layers, Eye, Download, Code, Database, X, Printer,
-  MapPin, TrendingUp, Package, ArrowLeftRight, BarChart3, AlertOctagon, CheckCircle2, Type, Hash, Image as ImageIcon, Link as LinkIcon, CalendarDays
+  MapPin, TrendingUp, Package, ArrowLeftRight, BarChart3, AlertOctagon, CheckCircle2, Type, Hash, Image as ImageIcon, Link as LinkIcon, CalendarDays,
+  Book, Coins, Briefcase, Building, Award, FileSpreadsheet, Boxes, FileSignature, Wallet
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -21,10 +22,15 @@ export default function DashboardPage() {
   // RBAC Role State
   const [activeRole, setActiveRole] = useState<'owner' | 'manager' | 'cajero' | 'invitado'>('owner');
 
+  // Logged-in user from session
+  const [sessionUser, setSessionUser] = useState<{ name: string; email: string; role: string } | null>(null);
+
   // Active Tab State
   const [activeTab, setActiveTab] = useState<
     'analytics' | 'products' | 'courses' | 'lms_users' | 'settings' | 'apps' | 
-    'reservations' | 'cms' | 'workflows' | 'integrations' | 'billing' | 'audit' | 'reports' | 'api' | 'franquicias'
+    'reservations' | 'cms' | 'workflows' | 'integrations' | 'billing' | 'audit' | 'reports' | 'api' | 'franquicias' |
+    'accounting_accounts' | 'accounting_entries' | 'accounting_reports' |
+    'education_schools' | 'education_members' | 'whitelabel'
   >('analytics');
   
   // Edit variables
@@ -130,6 +136,41 @@ export default function DashboardPage() {
   // Publishing State
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // ==================== [NEW] CONTABILIDAD PRO STATES ====================
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [journalEntries, setJournalEntries] = useState<any[]>([]);
+  const [journalItems, setJournalItems] = useState<any[]>([]);
+  const [newAccCode, setNewAccCode] = useState('');
+  const [newAccName, setNewAccName] = useState('');
+  const [newAccType, setNewAccType] = useState<'activo' | 'pasivo' | 'patrimonio' | 'ingreso' | 'gasto'>('activo');
+  const [newAccParent, setNewAccParent] = useState('');
+  const [newJeDate, setNewJeDate] = useState(new Date().toISOString().substring(0, 10));
+  const [newJeDesc, setNewJeDesc] = useState('');
+  const [newJeItems, setNewJeItems] = useState<Array<{ accountId: string; debit: number; credit: number; costCenter?: string }>>([
+    { accountId: '', debit: 0, credit: 0 },
+    { accountId: '', debit: 0, credit: 0 }
+  ]);
+  const [selectedLedgerAccountId, setSelectedLedgerAccountId] = useState<string>('');
+  
+  // ==================== [NEW] WHITE LABEL STATES ====================
+  const [wlBrandName, setWlBrandName] = useState('');
+  const [wlLogoUrl, setWlLogoUrl] = useState('');
+  const [wlPrimaryColor, setWlPrimaryColor] = useState('#06b6d4');
+  const [wlSecondaryColor, setWlSecondaryColor] = useState('#0f172a');
+  const [wlCustomEmailSender, setWlCustomEmailSender] = useState('');
+  const [wlCustomEmailName, setWlCustomEmailName] = useState('');
+  const [wlInvoiceFooter, setWlInvoiceFooter] = useState('');
+
+  // ==================== [NEW] EDUCACION STATES ====================
+  const [schools, setSchools] = useState<any[]>([]);
+  const [eduMembers, setEduMembers] = useState<any[]>([]);
+  const [newSchoolName, setNewSchoolName] = useState('');
+  const [newSchoolAddress, setNewSchoolAddress] = useState('');
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<'student' | 'teacher' | 'parent'>('student');
+  const [newMemberSchool, setNewMemberSchool] = useState('');
+
   // Helper check for Read-Only guest mode
   const isGuestMode = activeRole === 'invitado';
 
@@ -161,9 +202,61 @@ export default function DashboardPage() {
     setEasyPostApiKey(active.easyPostApiKey || '');
     setMetaPixelId(active.metaPixelId || '');
     setKlaviyoWebhookUrl(active.klaviyoWebhookUrl || '');
+
+    // Load new Contabilidad data
+    const accs = dbAdapter.getAccountingAccounts(active.id);
+    setAccounts(accs);
+    setJournalEntries(dbAdapter.getJournalEntries(active.id));
+    setJournalItems(dbAdapter.getJournalItems(active.id));
+    if (accs.length > 0 && !selectedLedgerAccountId) {
+      setSelectedLedgerAccountId(accs[0].id);
+    }
+
+    // Load new White label data
+    const wl = dbAdapter.getWhiteLabelSettings(active.id);
+    setWlBrandName(wl.brandName || '');
+    setWlLogoUrl(wl.logoUrl || '');
+    setWlPrimaryColor(wl.primaryColor);
+    setWlSecondaryColor(wl.secondaryColor);
+    setWlCustomEmailSender(wl.customEmailSender || '');
+    setWlCustomEmailName(wl.customEmailName || '');
+    setWlInvoiceFooter(wl.invoiceFooter || '');
+
+    // Load new Education data
+    setSchools(dbAdapter.getEducationSchools(active.id));
+    setEduMembers(dbAdapter.getEducationMembers(active.id));
   };
 
   useEffect(() => {
+    // Read stored session and sync role
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('saswebs_user');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          setSessionUser({ name: user.name || user.email, email: user.email, role: user.role });
+          // Map stored role to dashboard RBAC role
+          const roleMap: Record<string, 'owner' | 'manager' | 'cajero' | 'invitado'> = {
+            owner: 'owner',
+            super_admin: 'owner',
+            manager: 'manager',
+            pos: 'cajero',
+            student: 'invitado',
+          };
+          const mappedRole = roleMap[user.role] || 'invitado';
+          setActiveRole(mappedRole);
+
+          // Switch active tenant if user has a specific one
+          if (user.tenantId) {
+            const allTenants = dbAdapter.getTenants();
+            const match = allTenants.find((t: any) => t.id === user.tenantId);
+            if (match) {
+              dbAdapter.setActiveTenantId(match.id);
+            }
+          }
+        } catch {}
+      }
+    }
     reloadAllData();
   }, []);
 
@@ -195,6 +288,147 @@ export default function DashboardPage() {
       }
     }
   }, [selectedCollectionId, collections]);
+
+  // ==================== [NEW] CONTABILIDAD PRO HANDLERS ====================
+  const handleAddAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newAccCode || !newAccName || !tenant) return;
+    const newAcc = {
+      id: 'acc-' + Date.now(),
+      tenantId: tenant.id,
+      code: newAccCode,
+      name: newAccName,
+      type: newAccType,
+      parentId: newAccParent || undefined
+    };
+    const updated = [...accounts, newAcc];
+    setAccounts(updated);
+    dbAdapter.saveAccountingAccounts(tenant.id, updated);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Crear Cuenta Contable', `Cuenta: ${newAccCode} - ${newAccName}`);
+    setNewAccCode('');
+    setNewAccName('');
+    setNewAccParent('');
+    reloadAllData();
+  };
+
+  const handleCreateJournalEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newJeDesc || !tenant) return;
+
+    // Validate double entry ledger rule: Sum(Debit) == Sum(Credit)
+    const totalDebit = newJeItems.reduce((acc, item) => acc + (parseFloat(item.debit as any) || 0), 0);
+    const totalCredit = newJeItems.reduce((acc, item) => acc + (parseFloat(item.credit as any) || 0), 0);
+
+    if (totalDebit !== totalCredit) {
+      alert(`Error de Partida Doble: El total del Debe ($${totalDebit.toFixed(2)}) debe coincidir exactamente con el total del Haber ($${totalCredit.toFixed(2)}).`);
+      return;
+    }
+
+    if (totalDebit <= 0) {
+      alert('El monto del asiento debe ser mayor a 0.');
+      return;
+    }
+
+    const newEntry = {
+      id: 'je-' + Date.now(),
+      tenantId: tenant.id,
+      entryDate: newJeDate,
+      description: newJeDesc,
+      status: 'posted' as const
+    };
+
+    const newItems = newJeItems.map((item, idx) => ({
+      id: `ji-${Date.now()}-${idx}`,
+      tenantId: tenant.id,
+      entryId: newEntry.id,
+      accountId: item.accountId,
+      debit: parseFloat(item.debit as any) || 0,
+      credit: parseFloat(item.credit as any) || 0,
+      costCenter: item.costCenter || undefined
+    }));
+
+    const updatedEntries = [...journalEntries, newEntry];
+    const updatedItems = [...journalItems, ...newItems];
+
+    setJournalEntries(updatedEntries);
+    setJournalItems(updatedItems);
+
+    dbAdapter.saveJournalEntries(tenant.id, updatedEntries);
+    dbAdapter.saveJournalItems(tenant.id, updatedItems);
+
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Crear Asiento Contable', `Asiento: ${newJeDesc} ($${totalDebit.toFixed(2)})`);
+
+    // Reset Form
+    setNewJeDesc('');
+    setNewJeItems([
+      { accountId: '', debit: 0, credit: 0 },
+      { accountId: '', debit: 0, credit: 0 }
+    ]);
+    reloadAllData();
+    alert('Asiento contable asentado (posted) exitosamente en el Libro Diario.');
+  };
+
+  // ==================== [NEW] WHITE LABEL HANDLERS ====================
+  const handleSaveWhiteLabel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner'])) return;
+    if (!tenant) return;
+    const wl = {
+      tenantId: tenant.id,
+      brandName: wlBrandName,
+      logoUrl: wlLogoUrl,
+      primaryColor: wlPrimaryColor,
+      secondaryColor: wlSecondaryColor,
+      customEmailSender: wlCustomEmailSender,
+      customEmailName: wlCustomEmailName,
+      invoiceFooter: wlInvoiceFooter
+    };
+    dbAdapter.saveWhiteLabelSettings(tenant.id, wl);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Actualizar WhiteLabel', `Configuración de marca actualizada`);
+    reloadAllData();
+    alert('Ajustes de marca White Label guardados con éxito.');
+  };
+
+  // ==================== [NEW] EDUCACION HANDLERS ====================
+  const handleAddSchool = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newSchoolName || !tenant) return;
+    const newSch = {
+      id: 'sch-' + Date.now(),
+      tenantId: tenant.id,
+      name: newSchoolName,
+      address: newSchoolAddress
+    };
+    const updated = [...schools, newSch];
+    setSchools(updated);
+    dbAdapter.saveEducationSchools(tenant.id, updated);
+    setNewSchoolName('');
+    setNewSchoolAddress('');
+    reloadAllData();
+  };
+
+  const handleAddEducationMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(['owner', 'manager'])) return;
+    if (!newMemberName || !tenant) return;
+    const newMem = {
+      id: 'em-' + Date.now(),
+      tenantId: tenant.id,
+      schoolId: newMemberSchool || undefined,
+      name: newMemberName,
+      email: newMemberEmail,
+      role: newMemberRole
+    };
+    const updated = [...eduMembers, newMem];
+    setEduMembers(updated);
+    dbAdapter.saveEducationMembers(tenant.id, updated);
+    setNewMemberName('');
+    setNewMemberEmail('');
+    reloadAllData();
+  };
 
   const verifyPermission = (allowedRoles: Array<'owner' | 'manager' | 'cajero' | 'invitado'>) => {
     if (!allowedRoles.includes(activeRole)) {
@@ -612,10 +846,19 @@ export default function DashboardPage() {
 
   // Enforce Navigation Restriction based on RBAC roles
   const allowedTabsByRole = {
-    owner: ['analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'billing', 'audit', 'reports', 'api', 'franquicias'],
-    manager: ['analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'audit', 'reports', 'api', 'franquicias'],
+    owner: [
+      'analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'billing', 'audit', 'reports', 'api', 'franquicias',
+      'accounting_accounts', 'accounting_entries', 'accounting_reports', 'education_schools', 'education_members', 'whitelabel'
+    ],
+    manager: [
+      'analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'audit', 'reports', 'api', 'franquicias',
+      'accounting_accounts', 'accounting_entries', 'accounting_reports', 'education_schools', 'education_members'
+    ],
     cajero: ['analytics', 'products', 'reservations', 'cms', 'reports'],
-    invitado: ['analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'billing', 'audit', 'reports', 'api', 'franquicias']
+    invitado: [
+      'analytics', 'products', 'courses', 'lms_users', 'reservations', 'apps', 'settings', 'cms', 'workflows', 'integrations', 'billing', 'audit', 'reports', 'api', 'franquicias',
+      'accounting_accounts', 'accounting_entries', 'accounting_reports', 'education_schools', 'education_members', 'whitelabel'
+    ]
   };
 
   const isTabVisible = (tabKey: any) => {
@@ -636,32 +879,62 @@ export default function DashboardPage() {
     fallbackTab();
   }
 
-  // SaaS limits config
+  const getNavBtnClass = (tabKey: string) => {
+    return `w-full flex items-center gap-2.5 px-4 py-2 rounded-lg text-left text-xs font-bold transition-all ${
+      activeTab === tabKey 
+        ? 'bg-primary-celeste/20 text-cyan-900 font-extrabold border-l-2 border-primary-celeste shadow-xs' 
+        : 'text-slate-600 hover:bg-slate-100/50 hover:text-slate-900'
+    }`;
+  };
+
   const limits = dbAdapter.getTenantSaaSLimits(tenant.id);
 
   return (
     <div className="w-full min-h-[calc(100vh-3rem)] flex flex-col md:flex-row bg-[#f8fafc] text-slate-800 font-sans">
       
       {/* SIDEBAR NAVIGATION PANEL */}
-      <aside className="w-full md:w-64 bg-slate-950 text-slate-300 p-6 flex flex-col gap-6 shrink-0 border-r border-slate-900 shadow-2xl">
+      <aside className="w-full md:w-64 bg-white text-slate-700 p-6 flex flex-col gap-6 shrink-0 border-r border-slate-200/80 shadow-lg">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Consola Administrador</span>
-          <span className="text-sm font-black text-white block truncate">{tenant.name}</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Consola Administrador</span>
+          <span className="text-sm font-black text-slate-900 block truncate">{tenant.name}</span>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="bg-celeste-claro/20 text-primary-celeste px-2 py-0.5 rounded text-[10px] font-black uppercase">Plan {tenant.plan}</span>
-            <span className="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase">v3.5.0</span>
+            <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase">v3.5.0</span>
           </div>
+          {sessionUser && (
+            <div className="mt-2 pt-2 border-t border-slate-100">
+              <p className="text-[10px] font-bold text-slate-700 truncate">{sessionUser.name}</p>
+              <p className="text-[9px] text-slate-400 truncate">{sessionUser.email}</p>
+              <div className="flex items-center gap-1 mt-1.5">
+                <span className="bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase">{sessionUser.role}</span>
+                <button
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('saswebs_user');
+                      localStorage.removeItem('saswebs_role');
+                      localStorage.removeItem('mock_active_tenant_id');
+                    }
+                    window.location.href = '/login';
+                  }}
+                  className="ml-auto text-[8px] font-bold text-red-400 hover:text-red-600 uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
+                >
+                  Salir
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
+
         {/* RBAC ROLE SELECTOR GATEWAY */}
-        <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-3 flex flex-col gap-1.5">
-          <label className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-1">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5">
+          <label className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1">
             <Shield className="w-3 h-3 text-primary-celeste" /> Simular Rol de Acceso
           </label>
           <select 
             value={activeRole} 
             onChange={(e) => setActiveRole(e.target.value as any)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg py-1 px-2 text-[10px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary-celeste"
+            className="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary-celeste"
           >
             <option value="owner">🛡️ Owner (Propietario)</option>
             <option value="manager">💼 Manager (Gerente)</option>
@@ -673,68 +946,163 @@ export default function DashboardPage() {
         {/* Dynamic Nav list filtered by role permissions */}
         <nav className="flex flex-col gap-1 flex-grow overflow-y-auto pr-1 scrollbar-thin">
           
-          <span className="text-[9px] font-black uppercase text-slate-600 px-4 mt-2 mb-1 block">Operaciones</span>
+          {/* NIVEL 1 — CORE */}
+          <span className="text-[9px] font-black uppercase text-slate-400 px-4 mt-2 mb-1 block">NIVEL 1 — CORE</span>
 
           {isTabVisible('analytics') && (
             <button 
               onClick={() => setActiveTab('analytics')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'analytics' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('analytics')}
             >
               <BarChart2 className="w-3.5 h-3.5" /> Métricas e Hilos
+            </button>
+          )}
+
+          {isTabVisible('whitelabel') && (
+            <button 
+              onClick={() => setActiveTab('whitelabel')}
+              className={getNavBtnClass('whitelabel')}
+            >
+              <Award className="w-3.5 h-3.5" /> White Label Marca
+            </button>
+          )}
+
+          {isTabVisible('api') && (
+            <button 
+              onClick={() => setActiveTab('api')}
+              className={getNavBtnClass('api')}
+            >
+              <Code className="w-3.5 h-3.5" /> API & Webhooks
+            </button>
+          )}
+
+          {isTabVisible('billing') && (
+            <button 
+              onClick={() => setActiveTab('billing')}
+              className={getNavBtnClass('billing')}
+            >
+              <CreditCard className="w-3.5 h-3.5" /> Planes y Facturas
+            </button>
+          )}
+
+          {isTabVisible('audit') && (
+            <button 
+              onClick={() => setActiveTab('audit')}
+              className={getNavBtnClass('audit')}
+            >
+              <Activity className="w-3.5 h-3.5" /> Logs de Auditoría
+            </button>
+          )}
+
+          {isTabVisible('settings') && (
+            <button 
+              onClick={() => setActiveTab('settings')}
+              className={getNavBtnClass('settings')}
+            >
+              <Settings className="w-3.5 h-3.5" /> Ajustes Básicos
+            </button>
+          )}
+
+          {/* NIVEL 2 — MÓDULOS OFICIALES */}
+          <span className="text-[9px] font-black uppercase text-slate-400 px-4 mt-3 mb-1 block">NIVEL 2 — MÓDULOS</span>
+
+          {isTabVisible('cms') && (
+            <button 
+              onClick={() => setActiveTab('cms')}
+              className={getNavBtnClass('cms')}
+            >
+              <Database className="w-3.5 h-3.5" /> CMS Dinámico
             </button>
           )}
 
           {tenant.isEcommerceEnabled && isTabVisible('products') && (
             <button 
               onClick={() => setActiveTab('products')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'products' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('products')}
             >
               <ShoppingBag className="w-3.5 h-3.5" /> Catálogo Tienda
-            </button>
-          )}
-
-          {tenant.isLmsEnabled && isTabVisible('courses') && (
-            <button 
-              onClick={() => setActiveTab('courses')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'courses' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
-            >
-              <BookOpen className="w-3.5 h-3.5" /> Aula LMS Cursos
-            </button>
-          )}
-
-          {tenant.isLmsEnabled && isTabVisible('lms_users') && (
-            <button 
-              onClick={() => setActiveTab('lms_users')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'lms_users' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
-            >
-              <Users className="w-3.5 h-3.5" /> Progreso Alumnos
             </button>
           )}
 
           {tenant.isReservasEnabled && isTabVisible('reservations') && (
             <button 
               onClick={() => setActiveTab('reservations')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'reservations' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('reservations')}
             >
               <Calendar className="w-3.5 h-3.5" /> Agenda y Reservas
             </button>
           )}
 
-          <span className="text-[9px] font-black uppercase text-slate-600 px-4 mt-4 mb-1 block">Enterprise SaaS</span>
-
-          {isTabVisible('cms') && (
+          {isTabVisible('accounting_accounts') && (
             <button 
-              onClick={() => setActiveTab('cms')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'cms' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              onClick={() => setActiveTab('accounting_accounts')}
+              className={getNavBtnClass('accounting_accounts')}
             >
-              <Database className="w-3.5 h-3.5" /> CMS Dinámico
+              <Briefcase className="w-3.5 h-3.5" /> Contable: Cuentas
             </button>
           )}
+
+          {isTabVisible('accounting_entries') && (
+            <button 
+              onClick={() => setActiveTab('accounting_entries')}
+              className={getNavBtnClass('accounting_entries')}
+            >
+              <FileSignature className="w-3.5 h-3.5" /> Contable: Asientos
+            </button>
+          )}
+
+          {isTabVisible('accounting_reports') && (
+            <button 
+              onClick={() => setActiveTab('accounting_reports')}
+              className={getNavBtnClass('accounting_reports')}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Contable: Reportes
+            </button>
+          )}
+
+          {tenant.isLmsEnabled && isTabVisible('courses') && (
+            <button 
+              onClick={() => setActiveTab('courses')}
+              className={getNavBtnClass('courses')}
+            >
+              <BookOpen className="w-3.5 h-3.5" /> LMS Aula Cursos
+            </button>
+          )}
+
+          {tenant.isLmsEnabled && isTabVisible('lms_users') && (
+            <button 
+              onClick={() => setActiveTab('lms_users')}
+              className={getNavBtnClass('lms_users')}
+            >
+              <Users className="w-3.5 h-3.5" /> LMS Progreso Alumnos
+            </button>
+          )}
+
+          {isTabVisible('education_schools') && (
+            <button 
+              onClick={() => setActiveTab('education_schools')}
+              className={getNavBtnClass('education_schools')}
+            >
+              <Building className="w-3.5 h-3.5" /> Educativo: Escuelas
+            </button>
+          )}
+
+          {isTabVisible('education_members') && (
+            <button 
+              onClick={() => setActiveTab('education_members')}
+              className={getNavBtnClass('education_members')}
+            >
+              <Users className="w-3.5 h-3.5" /> Educativo: Miembros
+            </button>
+          )}
+
+          {/* NIVEL 3 — SERVICIOS TRANSVERSALES */}
+          <span className="text-[9px] font-black uppercase text-slate-400 px-4 mt-3 mb-1 block">NIVEL 3 — SERVICIOS</span>
 
           {isTabVisible('workflows') && (
             <button 
               onClick={() => setActiveTab('workflows')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'workflows' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('workflows')}
             >
               <Workflow className="w-3.5 h-3.5" /> Automatizaciones
             </button>
@@ -743,7 +1111,7 @@ export default function DashboardPage() {
           {isTabVisible('integrations') && (
             <button 
               onClick={() => setActiveTab('integrations')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'integrations' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('integrations')}
             >
               <Zap className="w-3.5 h-3.5" /> Integraciones Hub
             </button>
@@ -752,81 +1120,46 @@ export default function DashboardPage() {
           {isTabVisible('reports') && (
             <button 
               onClick={() => setActiveTab('reports')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'reports' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('reports')}
             >
               <FileText className="w-3.5 h-3.5" /> Motor de Reportes
             </button>
           )}
 
-          {isTabVisible('billing') && (
+          {isTabVisible('apps') && (
             <button 
-              onClick={() => setActiveTab('billing')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'billing' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              onClick={() => setActiveTab('apps')}
+              className={getNavBtnClass('apps')}
             >
-              <CreditCard className="w-3.5 h-3.5" /> Planes y Facturas
+              <Grid className="w-3.5 h-3.5" /> App Store / Market
             </button>
           )}
 
-          {isTabVisible('api') && (
-            <button 
-              onClick={() => setActiveTab('api')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'api' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
-            >
-              <Code className="w-3.5 h-3.5" /> Developer API & WH
-            </button>
-          )}
-
-          {isTabVisible('audit') && (
-            <button 
-              onClick={() => setActiveTab('audit')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'audit' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
-            >
-              <Activity className="w-3.5 h-3.5" /> Logs de Auditoría
-            </button>
-          )}
+          {/* NIVEL 4 — ECOSISTEMA */}
+          <span className="text-[9px] font-black uppercase text-slate-400 px-4 mt-3 mb-1 block">NIVEL 4 — ECOSISTEMA</span>
 
           {isTabVisible('franquicias') && (
             <button 
               onClick={() => setActiveTab('franquicias')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'franquicias' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
+              className={getNavBtnClass('franquicias')}
             >
-              <MapPin className="w-3.5 h-3.5" /> Franquicias Multi-Sede
-            </button>
-          )}
-
-          <span className="text-[9px] font-black uppercase text-slate-600 px-4 mt-4 mb-1 block">Sistema</span>
-
-          {isTabVisible('apps') && (
-            <button 
-              onClick={() => setActiveTab('apps')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'apps' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
-            >
-              <Grid className="w-3.5 h-3.5" /> App Store
-            </button>
-          )}
-
-          {isTabVisible('settings') && (
-            <button 
-              onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition-all ${activeTab === 'settings' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-900 hover:text-white'}`}
-            >
-              <Settings className="w-3.5 h-3.5" /> Ajustes Básicos
+              <MapPin className="w-3.5 h-3.5" /> Franquicias & Sedes
             </button>
           )}
 
         </nav>
 
         {/* Sidebar Footer exits */}
-        <div className="mt-auto border-t border-slate-900 pt-4 flex flex-col gap-2.5 shrink-0">
+        <div className="mt-auto border-t border-slate-100 pt-4 flex flex-col gap-2.5 shrink-0">
           <Link 
             href="/builder" 
-            className="w-full py-2.5 bg-primary-celeste text-slate-950 text-center font-extrabold rounded-xl text-xs shadow-md hover:scale-102 transition-transform flex items-center justify-center gap-1.5"
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 text-white text-center font-extrabold rounded-xl text-xs shadow-md hover:scale-102 transition-transform flex items-center justify-center gap-1.5"
           >
             ✎ Editor Visual
           </Link>
           <Link 
             href="/admin" 
-            className="text-center text-[10px] text-slate-500 hover:text-slate-300 font-bold block transition-colors"
+            className="text-center text-[10px] text-slate-400 hover:text-slate-700 font-bold block transition-colors"
           >
             ← Volver a Super Admin
           </Link>
@@ -1704,7 +2037,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {limits.invoices.map((inv) => (
+                    {limits.invoices.map((inv: any) => (
                       <tr key={inv.id} className="border-b border-slate-50">
                         <td className="py-3 font-mono font-bold text-slate-500 uppercase">{inv.id}</td>
                         <td className="py-3 font-medium text-slate-600">{inv.date}</td>
@@ -2200,6 +2533,610 @@ export default function DashboardPage() {
                 )}
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: CONTABLE CUENTAS (PLAN DE CUENTAS) ==================== */}
+        {activeTab === 'accounting_accounts' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Nueva Cuenta Contable</span>
+              <form onSubmit={handleAddAccount} className="flex flex-col gap-4 text-xs font-semibold">
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Código de Cuenta</label>
+                  <input required type="text" placeholder="Ej. 1111" value={newAccCode} onChange={e => setNewAccCode(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Nombre de la Cuenta</label>
+                  <input required type="text" placeholder="Ej. Caja Chica Central" value={newAccName} onChange={e => setNewAccName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Tipo de Cuenta</label>
+                    <select value={newAccType} onChange={e => setNewAccType(e.target.value as any)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                      <option value="activo">Activo</option>
+                      <option value="pasivo">Pasivo</option>
+                      <option value="patrimonio">Patrimonio</option>
+                      <option value="ingreso">Ingreso</option>
+                      <option value="gasto">Gasto</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Cuenta Padre</label>
+                    <select value={newAccParent} onChange={e => setNewAccParent(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                      <option value="">Ninguna (Nivel Superior)</option>
+                      {accounts.filter(a => !a.parentId).map(a => (
+                        <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Plus className="w-4 h-4 text-primary-celeste" /> Crear Cuenta
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Plan de Cuentas Jerárquico</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 font-bold text-gray-400">
+                      <th className="pb-3">Código</th>
+                      <th className="pb-3">Nombre</th>
+                      <th className="pb-3">Tipo</th>
+                      <th className="pb-3 text-right">Jerarquía</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accounts.sort((a, b) => a.code.localeCompare(b.code)).map((acc) => {
+                      const colorMap = {
+                        activo: 'bg-blue-50 text-blue-700 border-blue-200',
+                        pasivo: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                        patrimonio: 'bg-green-50 text-green-700 border-green-200',
+                        ingreso: 'bg-purple-50 text-purple-700 border-purple-200',
+                        gasto: 'bg-red-50 text-red-700 border-red-200'
+                      };
+                      return (
+                        <tr key={acc.id} className="border-b border-slate-50">
+                          <td className="py-3 font-mono font-bold text-slate-950">{acc.code}</td>
+                          <td className={`py-3 font-bold ${acc.parentId ? 'pl-6 text-slate-600 font-semibold' : 'text-slate-900'}`}>
+                            {acc.parentId ? '↳ ' : ''}{acc.name}
+                          </td>
+                          <td className="py-3">
+                            <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${colorMap[acc.type as keyof typeof colorMap]}`}>
+                              {acc.type.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right text-gray-400 font-bold text-[10px]">
+                            {acc.parentId ? 'Subcuenta' : 'Cuenta Raíz'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: CONTABLE ASIENTOS (LIBRO DIARIO) ==================== */}
+        {activeTab === 'accounting_entries' && (
+          <div className="space-y-8">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Ingresar Nuevo Asiento Contable (Libro Diario)</span>
+              <form onSubmit={handleCreateJournalEntry} className="space-y-4 text-xs font-semibold">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Glosa / Descripción</label>
+                    <input required type="text" placeholder="Ej. Pago de arriendo local comercial" value={newJeDesc} onChange={e => setNewJeDesc(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Fecha del Asiento</label>
+                    <input required type="date" value={newJeDate} onChange={e => setNewJeDate(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                  </div>
+                  <div className="flex flex-col gap-1 justify-end">
+                    <div className="bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex justify-between items-center">
+                      <span className="text-slate-500 font-bold">Estado:</span>
+                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">POSTED (Confirmado)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <span className="font-bold text-slate-800 block mb-3 text-xs">Desglose de Líneas (Partida Doble)</span>
+                  <div className="space-y-3">
+                    {newJeItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                        <select 
+                          required
+                          value={item.accountId}
+                          onChange={(e) => {
+                            const updated = [...newJeItems];
+                            updated[idx].accountId = e.target.value;
+                            setNewJeItems(updated);
+                          }}
+                          className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                        >
+                          <option value="">-- Seleccionar Cuenta --</option>
+                          {accounts.sort((a, b) => a.code.localeCompare(b.code)).map(a => (
+                            <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
+                          ))}
+                        </select>
+
+                        <div className="flex flex-col gap-1">
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="Debe (Debit)"
+                            value={item.debit || ''}
+                            onChange={(e) => {
+                              const updated = [...newJeItems];
+                              updated[idx].debit = parseFloat(e.target.value) || 0;
+                              if (updated[idx].debit > 0) updated[idx].credit = 0; // debit/credit are mutually exclusive
+                              setNewJeItems(updated);
+                            }}
+                            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-right"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="Haber (Credit)"
+                            value={item.credit || ''}
+                            onChange={(e) => {
+                              const updated = [...newJeItems];
+                              updated[idx].credit = parseFloat(e.target.value) || 0;
+                              if (updated[idx].credit > 0) updated[idx].debit = 0;
+                              setNewJeItems(updated);
+                            }}
+                            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-right"
+                          />
+                        </div>
+
+                        <div className="flex gap-2 items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Centro de Costo (Opcional)" 
+                            value={item.costCenter || ''} 
+                            onChange={(e) => {
+                              const updated = [...newJeItems];
+                              updated[idx].costCenter = e.target.value;
+                              setNewJeItems(updated);
+                            }}
+                            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex-grow"
+                          />
+                          {newJeItems.length > 2 && (
+                            <button 
+                              type="button" 
+                              onClick={() => setNewJeItems(newJeItems.filter((_, i) => i !== idx))}
+                              className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center mt-4">
+                    <button 
+                      type="button"
+                      onClick={() => setNewJeItems([...newJeItems, { accountId: '', debit: 0, credit: 0 }])}
+                      className="py-2 px-3 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold rounded-xl text-[11px]"
+                    >
+                      + Agregar Línea
+                    </button>
+
+                    <div className="flex items-center gap-6 font-mono text-xs">
+                      <div>
+                        Total Debe: <span className="font-black text-slate-900">${newJeItems.reduce((acc, i) => acc + (i.debit || 0), 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        Total Haber: <span className="font-black text-slate-900">${newJeItems.reduce((acc, i) => acc + (i.credit || 0), 0).toFixed(2)}</span>
+                      </div>
+                      <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1 bg-green-50 text-green-700 border border-green-200">
+                        <Check className="w-3.5 h-3.5" /> Cuadrado
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-4 shadow flex items-center justify-center gap-1.5">
+                  <FileSignature className="w-4 h-4 text-primary-celeste" /> Asentar Asiento (Post Entry)
+                </button>
+              </form>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Libro Diario General (Journal Entries)</span>
+              <div className="space-y-4">
+                {journalEntries.map((je) => {
+                  const jeItems = journalItems.filter(ji => ji.entryId === je.id);
+                  const jeTotal = jeItems.reduce((acc, i) => acc + i.debit, 0);
+                  return (
+                    <div key={je.id} className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/20">
+                      <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center text-xs">
+                        <div>
+                          <span className="font-mono font-bold text-[10px] text-gray-400 uppercase tracking-widest">{je.id}</span>
+                          <h4 className="font-black text-slate-800 mt-0.5">{je.description}</h4>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono font-black text-slate-600 block">{je.entryDate}</span>
+                          <span className="text-[10px] font-extrabold text-green-600">Total: ${jeTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="p-4 overflow-x-auto">
+                        <table className="w-full text-left text-[11px]">
+                          <thead>
+                            <tr className="text-gray-400 font-bold border-b border-slate-100/50">
+                              <th className="pb-2">Cuenta Contable</th>
+                              <th className="pb-2 text-right">Debe</th>
+                              <th className="pb-2 text-right">Haber</th>
+                              <th className="pb-2 text-right">CC</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {jeItems.map((ji) => {
+                              const acc = accounts.find(a => a.id === ji.accountId);
+                              return (
+                                <tr key={ji.id} className="border-b border-slate-50 last:border-b-0">
+                                  <td className="py-2 font-bold text-slate-700">{acc ? `${acc.code} - ${acc.name}` : ji.accountId}</td>
+                                  <td className="py-2 text-right font-mono font-bold">{ji.debit > 0 ? `$${ji.debit.toFixed(2)}` : '-'}</td>
+                                  <td className="py-2 text-right font-mono font-bold">{ji.credit > 0 ? `$${ji.credit.toFixed(2)}` : '-'}</td>
+                                  <td className="py-2 text-right text-gray-400 font-bold">{ji.costCenter || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: CONTABLE REPORTES (BALANCES & REPORTES) ==================== */}
+        {activeTab === 'accounting_reports' && (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              
+              {/* Balance General */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <div className="flex justify-between items-center mb-5">
+                  <span className="font-extrabold text-sm text-slate-800">Balance General (Consolidado)</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => handleExportData('xls', 'Balance General', accounts)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700"><Download className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {['activo', 'pasivo', 'patrimonio'].map((type) => {
+                    const filteredAccs = accounts.filter(a => a.type === type);
+                    const totalVal = filteredAccs.reduce((sum, acc) => {
+                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                      const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                      const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                      return sum + (type === 'activo' ? (debits - credits) : (credits - debits));
+                    }, 0);
+                    return (
+                      <div key={type} className="border border-slate-100 p-4 rounded-xl bg-slate-50/20">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
+                          <span className="font-black text-xs text-slate-800 uppercase capitalize">{type}s</span>
+                          <span className="font-mono font-black text-slate-950">${totalVal.toFixed(2)}</span>
+                        </div>
+                        <div className="space-y-2 text-xs">
+                          {filteredAccs.map(acc => {
+                            const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                            const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                            const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                            const balance = type === 'activo' ? (debits - credits) : (credits - debits);
+                            return (
+                              <div key={acc.id} className="flex justify-between text-slate-500 font-semibold">
+                                <span className={acc.parentId ? 'pl-4' : 'text-slate-700 font-bold'}>{acc.code} - {acc.name}</span>
+                                <span className="font-mono">${balance.toFixed(2)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Estado de Resultados */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <div className="flex justify-between items-center mb-5">
+                  <span className="font-extrabold text-sm text-slate-800">Estado de Resultados (P&L)</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => handleExportData('xls', 'Estado de Resultados', accounts)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700"><Download className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {['ingreso', 'gasto'].map((type) => {
+                    const filteredAccs = accounts.filter(a => a.type === type);
+                    const totalVal = filteredAccs.reduce((sum, acc) => {
+                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                      const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                      const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                      return sum + (type === 'ingreso' ? (credits - debits) : (debits - credits));
+                    }, 0);
+                    return (
+                      <div key={type} className="border border-slate-100 p-4 rounded-xl bg-slate-50/20">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
+                          <span className="font-black text-xs text-slate-800 uppercase capitalize">{type}s</span>
+                          <span className="font-mono font-black text-slate-950">${totalVal.toFixed(2)}</span>
+                        </div>
+                        <div className="space-y-2 text-xs">
+                          {filteredAccs.map(acc => {
+                            const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                            const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                            const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                            const balance = type === 'ingreso' ? (credits - debits) : (debits - credits);
+                            return (
+                              <div key={acc.id} className="flex justify-between text-slate-500 font-semibold">
+                                <span className={acc.parentId ? 'pl-4' : 'text-slate-700 font-bold'}>{acc.code} - {acc.name}</span>
+                                <span className="font-mono">${balance.toFixed(2)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {(() => {
+                    // Net profit calculation
+                    const revenues = accounts.filter(a => a.type === 'ingreso').reduce((sum, acc) => {
+                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                      return sum + (accItems.reduce((s, i) => s + i.credit, 0) - accItems.reduce((s, i) => s + i.debit, 0));
+                    }, 0);
+                    const expenses = accounts.filter(a => a.type === 'gasto').reduce((sum, acc) => {
+                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                      return sum + (accItems.reduce((s, i) => s + i.debit, 0) - accItems.reduce((s, i) => s + i.credit, 0));
+                    }, 0);
+                    const netIncome = revenues - expenses;
+                    return (
+                      <div className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 flex justify-between items-center font-bold text-xs mt-6">
+                        <span>UTILIDAD NETA (EJERCICIO)</span>
+                        <span className={`font-mono text-sm ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          ${netIncome.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Facturación Electrónica Stub */}
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 shadow-xl text-white">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-widest text-primary-celeste block">🧾 Facturación Electrónica (Tributaria)</span>
+                  <p className="text-slate-400 text-[11px] mt-1">Sincronización automatizada de boletas y facturas emitidas por la tienda y POS en Cloudflare Edge.</p>
+                </div>
+                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Servicio Activo</span>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => alert('Generando firma electrónica de exportación... Enlace de prueba exitoso.')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Validar Firma Digital</button>
+                <button type="button" onClick={() => alert('Consultando folios disponibles... Folio actual: 89012')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Consultar Folios</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: EDUCATIVO ESCUELAS ==================== */}
+        {activeTab === 'education_schools' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Añadir Sede / Escuela</span>
+              <form onSubmit={handleAddSchool} className="flex flex-col gap-4 text-xs font-semibold">
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Nombre de la Sede</label>
+                  <input required type="text" placeholder="Ej. Facultad de Ingeniería" value={newSchoolName} onChange={e => setNewSchoolName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Dirección</label>
+                  <input type="text" placeholder="Av. Principal 123" value={newSchoolAddress} onChange={e => setNewSchoolAddress(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Plus className="w-4 h-4 text-primary-celeste" /> Crear Sede
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Sedes Académicas Registradas</span>
+              <div className="space-y-4">
+                {schools.map(s => (
+                  <div key={s.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs">{s.name}</h4>
+                      <p className="text-[10px] text-gray-500 mt-1">{s.address || 'Sin dirección registrada'}</p>
+                    </div>
+                    <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold">Sede ID: {s.id.substring(0,8)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: EDUCATIVO MIEMBROS ==================== */}
+        {activeTab === 'education_members' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Miembro</span>
+              <form onSubmit={handleAddEducationMember} className="flex flex-col gap-4 text-xs font-semibold">
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Nombre Completo</label>
+                  <input required type="text" placeholder="Ej. Pedro Picapiedra" value={newMemberName} onChange={e => setNewMemberName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Correo Electrónico</label>
+                  <input required type="email" placeholder="pedro@correo.com" value={newMemberEmail} onChange={e => setNewMemberEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Rol</label>
+                    <select value={newMemberRole} onChange={e => setNewMemberRole(e.target.value as any)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                      <option value="student">Alumno</option>
+                      <option value="teacher">Profesor</option>
+                      <option value="parent">Apoderado</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Sede</label>
+                    <select value={newMemberSchool} onChange={e => setNewMemberSchool(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                      <option value="">-- Seleccionar --</option>
+                      {schools.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Plus className="w-4 h-4 text-primary-celeste" /> Crear Miembro
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Listado de Miembros Educativos</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 font-bold text-gray-400">
+                      <th className="pb-3">Nombre</th>
+                      <th className="pb-3">Correo</th>
+                      <th className="pb-3">Rol</th>
+                      <th className="pb-3">Sede</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eduMembers.map((m) => {
+                      const matchedS = schools.find(s => s.id === m.schoolId);
+                      return (
+                        <tr key={m.id} className="border-b border-slate-50">
+                          <td className="py-3 font-bold text-slate-900">{m.name}</td>
+                          <td className="py-3 text-slate-500 font-mono">{m.email || 'Sin correo'}</td>
+                          <td className="py-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              m.role === 'student' ? 'bg-blue-100 text-blue-800' : m.role === 'teacher' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'
+                            }`}>
+                              {m.role.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-3 font-bold text-slate-600">{matchedS ? matchedS.name : 'Sede General'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== [NEW] TAB: WHITE LABEL MARCA ==================== */}
+        {activeTab === 'whitelabel' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Ajustes de Marca (White Label)</span>
+              <form onSubmit={handleSaveWhiteLabel} className="space-y-4 text-xs font-semibold">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Nombre de Marca Propia</label>
+                    <input required type="text" placeholder="Ej. Mi Negocio SaaS" value={wlBrandName} onChange={e => setWlBrandName(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Logo Url (Emoji o imagen)</label>
+                    <input required type="text" placeholder="🚀" value={wlLogoUrl} onChange={e => setWlLogoUrl(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Color Primario (Hex)</label>
+                    <input required type="color" value={wlPrimaryColor} onChange={e => setWlPrimaryColor(e.target.value)} className="w-full h-10 p-1 bg-white border border-slate-200 rounded-xl cursor-pointer" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Color Secundario (Hex)</label>
+                    <input required type="color" value={wlSecondaryColor} onChange={e => setWlSecondaryColor(e.target.value)} className="w-full h-10 p-1 bg-white border border-slate-200 rounded-xl cursor-pointer" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Remitente de Correos (Email)</label>
+                    <input type="text" placeholder="no-responder@mimarcasub.com" value={wlCustomEmailSender} onChange={e => setWlCustomEmailSender(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-gray-500">Nombre Remitente de Correo</label>
+                    <input type="text" placeholder="Soporte Clientes" value={wlCustomEmailName} onChange={e => setWlCustomEmailName(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Texto Pie de Factura</label>
+                  <textarea placeholder="Gracias por su compra. Desarrollado por mimarca.com" value={wlInvoiceFooter} onChange={e => setWlInvoiceFooter(e.target.value)} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl h-20" />
+                </div>
+
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Save className="w-4 h-4 text-primary-celeste" /> Guardar Ajustes de Marca
+                </button>
+              </form>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md flex flex-col justify-between gap-6">
+              <div>
+                <span className="font-extrabold text-sm text-slate-800 block mb-2">Vista Previa de Marca Personalizada</span>
+                <p className="text-[11px] text-gray-400">Verifica cómo se verá la consola cliente de tu tenant en el navegador.</p>
+              </div>
+
+              <div className="border border-slate-100 rounded-3xl p-6 bg-slate-50/50 flex flex-col gap-4 shadow-inner">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{wlLogoUrl || '🚀'}</span>
+                  <div>
+                    <h4 className="font-black text-slate-950 text-sm leading-none">{wlBrandName || 'Tu Marca'}</h4>
+                    <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Powered by NRAM360</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Botones y Colores de Interfaz</span>
+                  <div className="flex gap-2">
+                    <button type="button" className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white shadow-sm" style={{ backgroundColor: wlPrimaryColor }}>
+                      Botón Primario
+                    </button>
+                    <button type="button" className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white shadow-sm" style={{ backgroundColor: wlSecondaryColor }}>
+                      Botón Secundario
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl shadow-xs border border-slate-100 flex flex-col gap-1 text-[10px]">
+                  <div className="flex justify-between"><span className="text-slate-400">Remitente:</span> <span className="font-bold font-mono text-slate-700">{wlCustomEmailName || 'SaaS Sender'} &lt;{wlCustomEmailSender || 'no-reply@saas.com'}&gt;</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Pie PDF:</span> <span className="font-bold text-slate-700 truncate max-w-[70%]">{wlInvoiceFooter || 'Sello de factura...'}</span></div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gradient-to-br from-primary-celeste/20 to-cyan-500/10 border border-primary-celeste/20 rounded-2xl flex items-center gap-3 text-xs">
+                <Activity className="w-5 h-5 text-primary-celeste shrink-0" />
+                <span className="text-slate-600 font-semibold">
+                  Los colores del **White Label** se inyectan dinámicamente en el tema CSS y el editor de páginas.
+                </span>
+              </div>
             </div>
           </div>
         )}

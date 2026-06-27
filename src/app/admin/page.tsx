@@ -13,8 +13,18 @@ import {
 export default function AdminPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [activeTenant, setActiveTenant] = useState<Tenant | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'snippets' | 'themes' | 'billing' | 'settings' | 'pipeline' | 'marketplace'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'snippets' | 'themes' | 'billing' | 'settings' | 'pipeline' | 'marketplace' | 'partners' | 'licenses' | 'consumption'>('dashboard');
   
+  // Resellers, Licenses, Consumption States
+  const [partners, setPartners] = useState<any[]>([]);
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [newPartnerName, setNewPartnerName] = useState('');
+  const [newPartnerEmail, setNewPartnerEmail] = useState('');
+  const [newPartnerTier, setNewPartnerTier] = useState<'Bronze' | 'Silver' | 'Gold'>('Bronze');
+  const [newLicensePartner, setNewLicensePartner] = useState('');
+  const [newLicenseTenant, setNewLicenseTenant] = useState('');
+  const [newLicensePlan, setNewLicensePlan] = useState('Enterprise');
+
   const [marketplaceExtensions, setMarketplaceExtensions] = useState([
     { id: 'ext-mercadopago', name: 'MercadoPago Gateway', developer: 'MercadoPago Inc.', desc: 'Pasarela de pagos de alto rendimiento para Latinoamérica.', category: 'Pagos', globallyListed: true },
     { id: 'ext-sendgrid', name: 'SMS SendGrid', developer: 'Twilio SendGrid', desc: 'Envío de notificaciones transaccionales SMS de pedidos y despachos.', category: 'Comunicaciones', globallyListed: true },
@@ -73,6 +83,8 @@ export default function AdminPage() {
     setTenants(dbAdapter.getTenants());
     setActiveTenant(dbAdapter.getActiveTenant());
     setGlobalTemplates(dbAdapter.getTemplates());
+    setPartners(dbAdapter.getPartners());
+    setLicenses(dbAdapter.getResellerLicenses());
 
     if (typeof window !== 'undefined') {
       const savedWildcard = localStorage.getItem('nram360_wildcard_domain');
@@ -274,6 +286,55 @@ export default function AdminPage() {
     setSubdomain('');
   };
 
+  const handleCreatePartner = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPartnerName || !newPartnerEmail) return;
+    const newPartner = {
+      id: 'partner-' + Math.random().toString(36).substr(2, 9),
+      name: newPartnerName,
+      email: newPartnerEmail,
+      tier: newPartnerTier,
+      commissionRate: newPartnerTier === 'Gold' ? 0.3 : newPartnerTier === 'Silver' ? 0.2 : 0.1,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    const updated = [...partners, newPartner];
+    setPartners(updated);
+    dbAdapter.savePartners(updated);
+    setNewPartnerName('');
+    setNewPartnerEmail('');
+    alert(`Socio/Reseller "${newPartner.name}" registrado con éxito.`);
+  };
+
+  const handleAssignLicense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLicensePartner || !newLicenseTenant) return;
+    const newLicense = {
+      id: 'lic-' + Math.random().toString(36).substr(2, 9),
+      partnerId: newLicensePartner,
+      tenantId: newLicenseTenant,
+      planTier: newLicensePlan,
+      seats: 5,
+      isOem: true,
+      status: 'active',
+      issuedAt: new Date().toISOString().split('T')[0]
+    };
+    const updated = [...licenses, newLicense];
+    setLicenses(updated);
+    dbAdapter.saveResellerLicenses(updated);
+    
+    // Update tenant plan accordingly
+    const updatedTenants = tenants.map(t => {
+      if (t.id === newLicenseTenant) {
+        return { ...t, plan: newLicensePlan as any };
+      }
+      return t;
+    });
+    setTenants(updatedTenants);
+    dbAdapter.saveTenants(updatedTenants);
+
+    alert(`Licencia OEM / Reseller asignada correctamente al Inquilino.`);
+  };
+
   const handleAddSnippet = (e: React.FormEvent) => {
     e.preventDefault();
     if (!snippetName) return;
@@ -287,71 +348,100 @@ export default function AdminPage() {
     setSnippetName('');
   };
 
+  const getNavBtnClass = (tabKey: string) => {
+    return `w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+      activeTab === tabKey 
+        ? 'bg-primary-celeste/20 text-cyan-900 font-extrabold border-l-2 border-primary-celeste shadow-xs' 
+        : 'text-slate-600 hover:bg-slate-100/50 hover:text-slate-900'
+    }`;
+  };
+
   return (
     <div className="w-full min-h-[calc(100vh-3rem)] bg-gray-50 flex flex-col md:flex-row text-slate-800">
       
       {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-slate-900 text-slate-300 p-6 flex flex-col gap-6 shrink-0">
+      <aside className="w-full md:w-64 bg-white text-slate-700 p-6 flex flex-col gap-6 shrink-0 border-r border-slate-200/80 shadow-lg">
         <div>
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Consola Superior</span>
-          <span className="text-xl font-black text-white mt-1 block">Super Admin</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Consola Superior</span>
+          <span className="text-xl font-black text-slate-900 mt-1 block">Super Admin</span>
         </div>
 
         <nav className="flex flex-col gap-1">
           <button 
             onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('dashboard')}
           >
             <TrendingUp className="w-4 h-4" /> Panel General (Dashboard)
           </button>
           <button 
             onClick={() => setActiveTab('tenants')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'tenants' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('tenants')}
           >
             <Users className="w-4 h-4" /> Inquilinos (Tenants)
           </button>
           <button 
             onClick={() => setActiveTab('snippets')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'snippets' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('snippets')}
           >
             <Layers className="w-4 h-4" /> Biblioteca Bloques
           </button>
           <button 
             onClick={() => setActiveTab('themes')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'themes' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('themes')}
           >
             <Grid className="w-4 h-4" /> Temas Globales
           </button>
           <button 
             onClick={() => setActiveTab('billing')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'billing' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('billing')}
           >
             <CreditCard className="w-4 h-4" /> Facturación y QR
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('settings')}
           >
             <Settings className="w-4 h-4" /> Ajustes Plataforma
           </button>
           <button 
             onClick={() => setActiveTab('pipeline')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'pipeline' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('pipeline')}
           >
             <Terminal className="w-4 h-4" /> Pipeline Figma → SaaS
           </button>
           <button 
             onClick={() => setActiveTab('marketplace')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${activeTab === 'marketplace' ? 'bg-primary-celeste text-slate-950' : 'hover:bg-slate-800 hover:text-white'}`}
+            className={getNavBtnClass('marketplace')}
           >
             <Grid className="w-4 h-4" /> Marketplace de Apps
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('partners')}
+            className={getNavBtnClass('partners')}
+          >
+            <Users className="w-4 h-4 text-cyan-600" /> Resellers / Canales
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('licenses')}
+            className={getNavBtnClass('licenses')}
+          >
+            <FileText className="w-4 h-4 text-primary-celeste" /> Licencias OEM / SaaS
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('consumption')}
+            className={getNavBtnClass('consumption')}
+          >
+            <Activity className="w-4 h-4 text-red-500" /> Consumo Edge & Telemetría
           </button>
         </nav>
 
         {activeTenant && (
-          <div className="mt-auto p-4 rounded-xl bg-slate-800 border border-slate-700 text-xs">
-            <span className="text-slate-400 block font-semibold mb-1">Inquilino Impersonado:</span>
-            <span className="text-white font-extrabold block truncate">{activeTenant.name}</span>
+          <div className="mt-auto p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <span className="text-slate-500 block font-semibold mb-1">Inquilino Impersonado:</span>
+            <span className="text-slate-900 font-extrabold block truncate">{activeTenant.name}</span>
             <span className="text-primary-celeste font-mono block mt-1">/{activeTenant.subdomain}</span>
             <button 
               onClick={() => {
@@ -1310,6 +1400,215 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 8. PARTNERS & RESELLERS TAB */}
+        {activeTab === 'partners' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-slate-800">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Nuevo Socio (Reseller)</span>
+              <form onSubmit={handleCreatePartner} className="flex flex-col gap-4 text-xs font-semibold">
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Nombre del Canal / Reseller</label>
+                  <input required type="text" placeholder="Ej. Soluciones IT España" value={newPartnerName} onChange={e => setNewPartnerName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Correo Electrónico de Contacto</label>
+                  <input required type="email" placeholder="contacto@canalit.com" value={newPartnerEmail} onChange={e => setNewPartnerEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Nivel de Alianza (Tier)</label>
+                  <select value={newPartnerTier} onChange={e => setNewPartnerTier(e.target.value as any)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="Bronze">Bronze (10% Comisión)</option>
+                    <option value="Silver">Silver (20% Comisión)</option>
+                    <option value="Gold">Gold (30% Comisión)</option>
+                  </select>
+                </div>
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Plus className="w-4 h-4 text-primary-celeste" /> Registrar Reseller
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Canales de Venta / Resellers Activos</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 font-bold text-gray-400">
+                      <th className="pb-3">Nombre</th>
+                      <th className="pb-3">Contacto</th>
+                      <th className="pb-3">Nivel</th>
+                      <th className="pb-3 text-right">Comisión</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partners.map((p) => (
+                      <tr key={p.id} className="border-b border-slate-50">
+                        <td className="py-3 font-bold text-slate-900">{p.name}</td>
+                        <td className="py-3 text-slate-500 font-mono">{p.email}</td>
+                        <td className="py-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            p.tier === 'Gold' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' : p.tier === 'Silver' ? 'bg-slate-100 text-slate-700' : 'bg-orange-100 text-orange-850'
+                          }`}>
+                            {p.tier}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right font-mono font-bold text-slate-700">
+                          {(p.commissionRate * 100).toFixed(0)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 9. OEM RESELLER LICENSES TAB */}
+        {activeTab === 'licenses' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-slate-800">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Asignar Licencia OEM a Inquilino</span>
+              <form onSubmit={handleAssignLicense} className="flex flex-col gap-4 text-xs font-semibold">
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Socio / Reseller Emisor</label>
+                  <select required value={newLicensePartner} onChange={e => setNewLicensePartner(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="">-- Seleccionar --</option>
+                    {partners.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.tier})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Inquilino de Destino (Tenant)</label>
+                  <select required value={newLicenseTenant} onChange={e => setNewLicenseTenant(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="">-- Seleccionar --</option>
+                    {tenants.map(t => (
+                      <option key={t.id} value={t.id}>{t.name} (subdominio: {t.subdomain})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-500">Plan Otorgado</label>
+                  <select value={newLicensePlan} onChange={e => setNewLicensePlan(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <option value="Starter">Starter</option>
+                    <option value="Pro">Pro</option>
+                    <option value="Enterprise">Enterprise</option>
+                  </select>
+                </div>
+                <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                  <Check className="w-4 h-4 text-primary-celeste" /> Asignar Licencia
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+              <span className="font-extrabold text-sm text-slate-800 block mb-4">Licencias OEM / Resellers Emitidas</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 font-bold text-gray-400">
+                      <th className="pb-3">Licencia ID</th>
+                      <th className="pb-3">Canal</th>
+                      <th className="pb-3">Inquilino</th>
+                      <th className="pb-3">Plan</th>
+                      <th className="pb-3 text-right">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {licenses.map((lic) => {
+                      const matchedP = partners.find(p => p.id === lic.partnerId);
+                      const matchedT = tenants.find(t => t.id === lic.tenantId);
+                      return (
+                        <tr key={lic.id} className="border-b border-slate-50">
+                          <td className="py-3 font-mono font-bold text-slate-500 uppercase">{lic.id.substring(0,8)}</td>
+                          <td className="py-3 font-bold text-slate-800">{matchedP ? matchedP.name : lic.partnerId}</td>
+                          <td className="py-3 font-bold text-slate-600">{matchedT ? matchedT.name : lic.tenantId}</td>
+                          <td className="py-3">
+                            <span className="bg-celeste-claro/20 text-primary-celeste px-2 py-0.5 rounded text-[10px] font-black uppercase">
+                              {lic.planTier}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right">
+                            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">
+                              {lic.status.toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 10. CONSUMPTION & TELEMETRY TAB */}
+        {activeTab === 'consumption' && (
+          <div className="space-y-8 text-slate-800">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">Consumo Edge & Telemetría en Tiempo Real</h2>
+              <p className="text-sm text-slate-500">Métricas consolidadas de Cloudflare Workers, Storage y estado de backups.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Workers Telemetry Card */}
+              <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-md flex flex-col justify-between gap-5">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cloudflare Workers</span>
+                    <Cpu className="w-5 h-5 text-primary-celeste" />
+                  </div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Peticiones HTTP Edge</h3>
+                  <div className="font-mono text-3xl font-black mt-2 text-slate-900">2,849,102</div>
+                  <p className="text-xs text-slate-400 mt-2">Tiempo promedio de ejecución CPU: <span className="font-bold text-slate-700">4.2ms</span></p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl text-[10px] font-semibold text-slate-500 flex flex-col gap-1 border border-slate-100">
+                  <div className="flex justify-between"><span>Latencia Media:</span> <span className="font-bold text-slate-700">12ms</span></div>
+                  <div className="flex justify-between"><span>Tasa de Acierto CDN:</span> <span className="font-bold text-slate-700">92.4%</span></div>
+                </div>
+              </div>
+
+              {/* R2 Storage Card */}
+              <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-md flex flex-col justify-between gap-5">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">R2 Object Storage</span>
+                    <Database className="w-5 h-5 text-green-500" />
+                  </div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Almacenamiento Total</h3>
+                  <div className="font-mono text-3xl font-black mt-2 text-slate-900">14.8 GB</div>
+                  <p className="text-xs text-slate-400 mt-2">Archivos/Imágenes subidas: <span className="font-bold text-slate-700">12,890 archivos</span></p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl text-[10px] font-semibold text-slate-500 flex flex-col gap-1 border border-slate-100">
+                  <div className="flex justify-between"><span>Tráfico Saliente (Egress):</span> <span className="font-bold text-slate-700">0.00 GB (Gratis)</span></div>
+                  <div className="flex justify-between"><span>Límite de Almacenamiento:</span> <span className="font-bold text-slate-700">100 GB</span></div>
+                </div>
+              </div>
+
+              {/* Backups Telemetry Card */}
+              <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-md flex flex-col justify-between gap-5">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Backups Automatizados</span>
+                    <Server className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Estado de Respaldo</h3>
+                  <div className="font-mono text-3xl font-black mt-2 text-slate-950">✓ EXITOSO</div>
+                  <p className="text-xs text-slate-400 mt-2">Último backup: <span className="font-bold text-slate-700">Hoy 04:00 AM UTC</span></p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl text-[10px] font-semibold text-slate-500 flex flex-col gap-1 border border-slate-100">
+                  <div className="flex justify-between"><span>Tamaño del Snapshot:</span> <span className="font-bold text-slate-700">184.2 MB</span></div>
+                  <div className="flex justify-between"><span>Destino de Backup:</span> <span className="font-bold text-slate-700">AWS S3 (US-East)</span></div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}

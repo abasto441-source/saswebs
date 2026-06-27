@@ -289,6 +289,169 @@ values
 on conflict (id) do nothing;
 
 -- ================================================================
+-- 16. ERP CONTABILIDAD PRO
+-- ================================================================
+create table if not exists accounting_accounts (
+  id text primary key default 'acc-' || gen_random_uuid()::text,
+  tenant_id text not null references tenants(id) on delete cascade,
+  code text not null,
+  name text not null,
+  type text not null check (type in ('activo', 'pasivo', 'patrimonio', 'ingreso', 'gasto')),
+  parent_id text references accounting_accounts(id) on delete set null,
+  created_at timestamptz default now(),
+  unique(tenant_id, code)
+);
+
+create table if not exists journal_entries (
+  id text primary key default 'je-' || gen_random_uuid()::text,
+  tenant_id text not null references tenants(id) on delete cascade,
+  entry_date date not null default current_date,
+  description text not null,
+  status text not null default 'draft' check (status in ('draft', 'posted')),
+  created_at timestamptz default now()
+);
+
+create table if not exists journal_items (
+  id text primary key default 'ji-' || gen_random_uuid()::text,
+  tenant_id text not null references tenants(id) on delete cascade,
+  entry_id text not null references journal_entries(id) on delete cascade,
+  account_id text not null references accounting_accounts(id) on delete cascade,
+  debit numeric(12,2) not null default 0 check (debit >= 0),
+  credit numeric(12,2) not null default 0 check (credit >= 0),
+  cost_center text,
+  created_at timestamptz default now()
+);
+
+-- ================================================================
+-- 17. WHITE LABEL SETTINGS
+-- ================================================================
+create table if not exists white_label_settings (
+  tenant_id text primary key references tenants(id) on delete cascade,
+  logo_url text,
+  primary_color text default '#06b6d4',
+  secondary_color text default '#0f172a',
+  brand_name text,
+  custom_email_sender text,
+  custom_email_name text,
+  invoice_footer text,
+  created_at timestamptz default now()
+);
+
+-- ================================================================
+-- 18. PARTNERS & RESELLERS
+-- ================================================================
+create table if not exists partners_resellers (
+  id text primary key default 'pt-' || gen_random_uuid()::text,
+  name text not null,
+  email text unique not null,
+  company_name text,
+  tier text not null default 'Bronze' check (tier in ('Bronze', 'Silver', 'Gold')),
+  commission_percentage numeric(5,2) not null default 10.00,
+  is_active boolean default true,
+  created_at timestamptz default now()
+);
+
+create table if not exists reseller_licenses (
+  id text primary key default 'lic-' || gen_random_uuid()::text,
+  partner_id text not null references partners_resellers(id) on delete cascade,
+  tenant_id text unique references tenants(id) on delete set null,
+  assigned_plan text not null,
+  expiration_date date not null,
+  is_active boolean default true,
+  created_at timestamptz default now()
+);
+
+-- ================================================================
+-- 19. EDUCACION
+-- ================================================================
+create table if not exists education_schools (
+  id text primary key default 'sch-' || gen_random_uuid()::text,
+  tenant_id text not null references tenants(id) on delete cascade,
+  name text not null,
+  address text,
+  created_at timestamptz default now()
+);
+
+create table if not exists education_members (
+  id text primary key default 'em-' || gen_random_uuid()::text,
+  tenant_id text not null references tenants(id) on delete cascade,
+  school_id text references education_schools(id) on delete set null,
+  user_id uuid references auth.users on delete set null,
+  name text not null,
+  email text,
+  role text not null check (role in ('student', 'teacher', 'parent')),
+  created_at timestamptz default now()
+);
+
+-- ================================================================
+-- 20. MARKETPLACE APPS
+-- ================================================================
+create table if not exists marketplace_apps (
+  id text primary key default 'app-' || gen_random_uuid()::text,
+  name text not null,
+  description text,
+  developer_name text,
+  price numeric(10,2) not null default 0,
+  category text not null,
+  is_verified boolean default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists tenant_active_apps (
+  tenant_id text not null references tenants(id) on delete cascade,
+  app_id text not null references marketplace_apps(id) on delete cascade,
+  activated_at timestamptz default now(),
+  primary key (tenant_id, app_id)
+);
+
+-- ================================================================
+-- RLS POLICIES FOR NEW TABLES
+-- ================================================================
+alter table accounting_accounts enable row level security;
+alter table journal_entries enable row level security;
+alter table journal_items enable row level security;
+alter table white_label_settings enable row level security;
+alter table partners_resellers enable row level security;
+alter table reseller_licenses enable row level security;
+alter table education_schools enable row level security;
+alter table education_members enable row level security;
+alter table marketplace_apps enable row level security;
+alter table tenant_active_apps enable row level security;
+
+create policy "accounting_accounts_tenant_isolation" on accounting_accounts
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+create policy "journal_entries_tenant_isolation" on journal_entries
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+create policy "journal_items_tenant_isolation" on journal_items
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+create policy "white_label_settings_tenant_isolation" on white_label_settings
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+create policy "partners_super_admin_only" on partners_resellers
+  using (get_user_role() = 'super_admin');
+
+create policy "licenses_super_admin_only" on reseller_licenses
+  using (get_user_role() = 'super_admin');
+
+create policy "education_schools_tenant_isolation" on education_schools
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+create policy "education_members_tenant_isolation" on education_members
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+create policy "marketplace_read_all" on marketplace_apps
+  for select using (true);
+
+create policy "marketplace_write_super_admin" on marketplace_apps
+  using (get_user_role() = 'super_admin');
+
+create policy "tenant_active_apps_isolation" on tenant_active_apps
+  using (tenant_id = get_user_tenant_id() or get_user_role() = 'super_admin');
+
+-- ================================================================
 -- INDEXES para performance
 -- ================================================================
 create index if not exists idx_products_tenant on products(tenant_id);
@@ -298,3 +461,6 @@ create index if not exists idx_pages_tenant_slug on pages(tenant_id, slug);
 create index if not exists idx_cms_items_collection on cms_items(collection_id);
 create index if not exists idx_audit_logs_tenant on audit_logs(tenant_id, created_at desc);
 create index if not exists idx_enrollments_user on enrollments(user_id);
+create index if not exists idx_accounting_accounts_tenant on accounting_accounts(tenant_id, code);
+create index if not exists idx_journal_entries_tenant on journal_entries(tenant_id, entry_date desc);
+create index if not exists idx_journal_items_entry on journal_items(entry_id);

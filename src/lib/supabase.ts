@@ -205,6 +205,95 @@ export interface TelemetryMetric {
   recentErrors: string[];
 }
 
+export interface AccountingAccount {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  type: 'activo' | 'pasivo' | 'patrimonio' | 'ingreso' | 'gasto';
+  parentId?: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  tenantId: string;
+  entryDate: string;
+  description: string;
+  status: 'draft' | 'posted';
+}
+
+export interface JournalItem {
+  id: string;
+  tenantId: string;
+  entryId: string;
+  accountId: string;
+  debit: number;
+  credit: number;
+  costCenter?: string;
+}
+
+export interface WhiteLabelSettings {
+  tenantId: string;
+  logoUrl?: string;
+  primaryColor: string;
+  secondaryColor: string;
+  brandName?: string;
+  customEmailSender?: string;
+  customEmailName?: string;
+  invoiceFooter?: string;
+}
+
+export interface ResellerPartner {
+  id: string;
+  name: string;
+  email: string;
+  companyName?: string;
+  tier: 'Bronze' | 'Silver' | 'Gold';
+  commissionPercentage: number;
+  isActive: boolean;
+}
+
+export interface ResellerLicense {
+  id: string;
+  partnerId: string;
+  tenantId?: string;
+  assignedPlan: string;
+  expirationDate: string;
+  isActive: boolean;
+}
+
+export interface EducationSchool {
+  id: string;
+  tenantId: string;
+  name: string;
+  address?: string;
+}
+
+export interface EducationMember {
+  id: string;
+  tenantId: string;
+  schoolId?: string;
+  userId?: string;
+  name: string;
+  email?: string;
+  role: 'student' | 'teacher' | 'parent';
+}
+
+export interface MarketplaceApp {
+  id: string;
+  name: string;
+  description: string;
+  developerName: string;
+  price: number;
+  category: string;
+  isVerified: boolean;
+}
+
+export interface TenantActiveApp {
+  tenantId: string;
+  appId: string;
+}
+
 // Initial mock data definitions
 const INITIAL_TENANTS: Tenant[] = [
   {
@@ -249,6 +338,60 @@ const INITIAL_TENANTS: Tenant[] = [
     favicon: '💻',
     expirationDate: '2026-12-01'
   }
+];
+
+const INITIAL_ACCOUNTING_ACCOUNTS: AccountingAccount[] = [
+  { id: 'acc-1', tenantId: 't-celeste', code: '1000', name: 'Activos', type: 'activo' },
+  { id: 'acc-11', tenantId: 't-celeste', code: '1100', name: 'Caja y Bancos', type: 'activo', parentId: 'acc-1' },
+  { id: 'acc-111', tenantId: 't-celeste', code: '1110', name: 'Caja Chica', type: 'activo', parentId: 'acc-11' },
+  { id: 'acc-112', tenantId: 't-celeste', code: '1120', name: 'Banco Central', type: 'activo', parentId: 'acc-11' },
+  { id: 'acc-12', tenantId: 't-celeste', code: '1200', name: 'Cuentas por Cobrar', type: 'activo', parentId: 'acc-1' },
+  { id: 'acc-2', tenantId: 't-celeste', code: '2000', name: 'Pasivos', type: 'pasivo' },
+  { id: 'acc-21', tenantId: 't-celeste', code: '2100', name: 'Cuentas por Pagar', type: 'pasivo', parentId: 'acc-2' },
+  { id: 'acc-3', tenantId: 't-celeste', code: '3000', name: 'Patrimonio Neto', type: 'patrimonio' },
+  { id: 'acc-31', tenantId: 't-celeste', code: '3100', name: 'Capital Social', type: 'patrimonio', parentId: 'acc-3' },
+  { id: 'acc-4', tenantId: 't-celeste', code: '4000', name: 'Ingresos', type: 'ingreso' },
+  { id: 'acc-41', tenantId: 't-celeste', code: '4100', name: 'Ventas de Cursos', type: 'ingreso', parentId: 'acc-4' },
+  { id: 'acc-42', tenantId: 't-celeste', code: '4200', name: 'Ventas de eCommerce', type: 'ingreso', parentId: 'acc-4' },
+  { id: 'acc-5', tenantId: 't-celeste', code: '5000', name: 'Gastos', type: 'gasto' },
+  { id: 'acc-51', tenantId: 't-celeste', code: '5100', name: 'Gastos de Operación', type: 'gasto', parentId: 'acc-5' }
+];
+
+const INITIAL_JOURNAL_ENTRIES: JournalEntry[] = [
+  { id: 'je-1', tenantId: 't-celeste', entryDate: '2026-06-01', description: 'Aporte de Capital Inicial', status: 'posted' },
+  { id: 'je-2', tenantId: 't-celeste', entryDate: '2026-06-05', description: 'Venta de Cursos Online', status: 'posted' }
+];
+
+const INITIAL_JOURNAL_ITEMS: JournalItem[] = [
+  { id: 'ji-1', tenantId: 't-celeste', entryId: 'je-1', accountId: 'acc-112', debit: 10000, credit: 0 },
+  { id: 'ji-2', tenantId: 't-celeste', entryId: 'je-1', accountId: 'acc-31', debit: 0, credit: 10000 },
+  { id: 'ji-3', tenantId: 't-celeste', entryId: 'je-2', accountId: 'acc-111', debit: 500, credit: 0 },
+  { id: 'ji-4', tenantId: 't-celeste', entryId: 'je-2', accountId: 'acc-41', debit: 0, credit: 500 }
+];
+
+const INITIAL_WHITE_LABEL_SETTINGS: WhiteLabelSettings[] = [
+  {
+    tenantId: 't-celeste',
+    logoUrl: '🎨',
+    primaryColor: '#06b6d4',
+    secondaryColor: '#0f172a',
+    brandName: 'Celeste Academia & Tienda',
+    customEmailSender: 'academia@celeste.com',
+    customEmailName: 'Celeste Oficial',
+    invoiceFooter: 'Gracias por su preferencia · Celeste S.A.'
+  }
+];
+
+const INITIAL_PARTNERS: ResellerPartner[] = [
+  { id: 'pt-1', name: 'Agencia Digital Nexus', email: 'nexus@nram360.com', companyName: 'Nexus Studio', tier: 'Gold', commissionPercentage: 20.00, isActive: true },
+  { id: 'pt-2', name: 'SaaS Resellers Latam', email: 'latam@nram360.com', companyName: 'Reseller Latam S.A.', tier: 'Silver', commissionPercentage: 15.00, isActive: true }
+];
+
+const INITIAL_MARKETPLACE_APPS: MarketplaceApp[] = [
+  { id: 'app-stripe', name: 'Stripe Terminal Connect', description: 'Lector de tarjetas físicos para el POS con sincronización de cuentas bancarias.', developerName: 'SASWEBS Core', price: 9.99, category: 'Payments', isVerified: true },
+  { id: 'app-whatsapp', name: 'WhatsApp API Gateway', description: 'Envío de boletas de venta y alertas de cursos directamente a WhatsApp.', developerName: 'SASWEBS Core', price: 14.99, category: 'Messaging', isVerified: true },
+  { id: 'app-sap', name: 'SAP Business One Connector', description: 'Sincroniza asientos contables del ERP directamente con SAP ERP.', developerName: 'ERP Connectors', price: 49.99, category: 'ERP Sync', isVerified: true },
+  { id: 'app-factura', name: 'Facturación Electrónica Chile/Perú', description: 'Emisión de boletas y facturas tributarias de exportación.', developerName: 'ChileTributo', price: 19.99, category: 'Taxes', isVerified: true }
 ];
 
 const INITIAL_COURSES: Course[] = [
@@ -567,7 +710,14 @@ class SupabaseMock {
   private getStorage<T>(key: string, defaultVal: T): T {
     if (typeof window === 'undefined') return defaultVal;
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultVal;
+    if (!item) return defaultVal;
+    try {
+      return JSON.parse(item) as T;
+    } catch {
+      // Corrupted or non-JSON value — clear it and use default
+      localStorage.removeItem(key);
+      return defaultVal;
+    }
   }
 
   private setStorage<T>(key: string, value: T) {
@@ -578,7 +728,7 @@ class SupabaseMock {
 
   // Helper to trigger background table syncing to Supabase
   private syncTable(key: string, data: any[]) {
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
       syncTableToSupabase(key, data).catch(err => console.error(`Sync error for ${key}:`, err));
     }
   }
@@ -899,6 +1049,129 @@ class SupabaseMock {
   saveTelemetryMetric(tenantId: string, metric: TelemetryMetric) {
     this.setStorage(`mock_telemetry_${tenantId}`, metric);
   }
+
+  // Accounting PRO methods
+  getAccountingAccounts(tenantId: string): AccountingAccount[] {
+    const allAccounts = this.getStorage('mock_accounting_accounts', INITIAL_ACCOUNTING_ACCOUNTS);
+    return allAccounts.filter((acc: AccountingAccount) => acc.tenantId === tenantId);
+  }
+
+  saveAccountingAccounts(tenantId: string, accounts: AccountingAccount[]) {
+    const allAccounts = this.getStorage('mock_accounting_accounts', INITIAL_ACCOUNTING_ACCOUNTS);
+    const filtered = allAccounts.filter((acc: AccountingAccount) => acc.tenantId !== tenantId);
+    this.setStorage('mock_accounting_accounts', [...filtered, ...accounts]);
+  }
+
+  getJournalEntries(tenantId: string): JournalEntry[] {
+    const allEntries = this.getStorage('mock_journal_entries', INITIAL_JOURNAL_ENTRIES);
+    return allEntries.filter((je: JournalEntry) => je.tenantId === tenantId);
+  }
+
+  saveJournalEntries(tenantId: string, entries: JournalEntry[]) {
+    const allEntries = this.getStorage('mock_journal_entries', INITIAL_JOURNAL_ENTRIES);
+    const filtered = allEntries.filter((je: JournalEntry) => je.tenantId !== tenantId);
+    this.setStorage('mock_journal_entries', [...filtered, ...entries]);
+  }
+
+  getJournalItems(tenantId: string): JournalItem[] {
+    const allItems = this.getStorage('mock_journal_items', INITIAL_JOURNAL_ITEMS);
+    return allItems.filter((ji: JournalItem) => ji.tenantId === tenantId);
+  }
+
+  saveJournalItems(tenantId: string, items: JournalItem[]) {
+    const allItems = this.getStorage('mock_journal_items', INITIAL_JOURNAL_ITEMS);
+    const filtered = allItems.filter((ji: JournalItem) => ji.tenantId !== tenantId);
+    this.setStorage('mock_journal_items', [...filtered, ...items]);
+  }
+
+  // White Label methods
+  getWhiteLabelSettings(tenantId: string): WhiteLabelSettings {
+    const allSettings = this.getStorage('mock_white_label_settings', INITIAL_WHITE_LABEL_SETTINGS);
+    let settings = allSettings.find((w: WhiteLabelSettings) => w.tenantId === tenantId);
+    if (!settings) {
+      settings = {
+        tenantId,
+        primaryColor: '#06b6d4',
+        secondaryColor: '#0f172a',
+        brandName: 'Mi Marca WhiteLabel'
+      };
+    }
+    return settings;
+  }
+
+  saveWhiteLabelSettings(tenantId: string, settings: WhiteLabelSettings) {
+    const allSettings = this.getStorage('mock_white_label_settings', INITIAL_WHITE_LABEL_SETTINGS);
+    const filtered = allSettings.filter((w: WhiteLabelSettings) => w.tenantId !== tenantId);
+    this.setStorage('mock_white_label_settings', [...filtered, settings]);
+  }
+
+  // Partners & Resellers methods
+  getPartners(): ResellerPartner[] {
+    return this.getStorage('mock_partners', INITIAL_PARTNERS);
+  }
+
+  savePartners(partners: ResellerPartner[]) {
+    this.setStorage('mock_partners', partners);
+  }
+
+  getResellerLicenses(): ResellerLicense[] {
+    return this.getStorage('mock_reseller_licenses', []);
+  }
+
+  saveResellerLicenses(licenses: ResellerLicense[]) {
+    this.setStorage('mock_reseller_licenses', licenses);
+  }
+
+  // Education School methods
+  getEducationSchools(tenantId: string): EducationSchool[] {
+    const allSchools = this.getStorage('mock_education_schools', [
+      { id: 'sch-primary', tenantId, name: 'Colegio Celeste Primaria', address: 'Av. Las Condes 1000' }
+    ]);
+    return allSchools.filter((s: EducationSchool) => s.tenantId === tenantId);
+  }
+
+  saveEducationSchools(tenantId: string, schools: EducationSchool[]) {
+    const allSchools = this.getStorage('mock_education_schools', []);
+    const filtered = allSchools.filter((s: EducationSchool) => s.tenantId !== tenantId);
+    this.setStorage('mock_education_schools', [...filtered, ...schools]);
+  }
+
+  getEducationMembers(tenantId: string): EducationMember[] {
+    const allMembers = this.getStorage('mock_education_members', [
+      { id: 'em-1', tenantId, schoolId: 'sch-primary', name: 'Juan Pérez', email: 'juan@celeste.com', role: 'student' as const },
+      { id: 'em-2', tenantId, schoolId: 'sch-primary', name: 'Ana Gómez', email: 'ana@celeste.com', role: 'teacher' as const }
+    ]);
+    return allMembers.filter((m: EducationMember) => m.tenantId === tenantId);
+  }
+
+  saveEducationMembers(tenantId: string, members: EducationMember[]) {
+    const allMembers = this.getStorage('mock_education_members', []);
+    const filtered = allMembers.filter((m: EducationMember) => m.tenantId !== tenantId);
+    this.setStorage('mock_education_members', [...filtered, ...members]);
+  }
+
+  // Marketplace methods
+  getMarketplaceApps(): MarketplaceApp[] {
+    return this.getStorage('mock_marketplace_apps', INITIAL_MARKETPLACE_APPS);
+  }
+
+  saveMarketplaceApps(apps: MarketplaceApp[]) {
+    this.setStorage('mock_marketplace_apps', apps);
+  }
+
+  getTenantActiveApps(tenantId: string): TenantActiveApp[] {
+    const allActive = this.getStorage('mock_tenant_active_apps', [
+      { tenantId: 't-celeste', appId: 'app-stripe' },
+      { tenantId: 't-celeste', appId: 'app-whatsapp' }
+    ]);
+    return allActive.filter((ta: TenantActiveApp) => ta.tenantId === tenantId);
+  }
+
+  saveTenantActiveApps(tenantId: string, apps: TenantActiveApp[]) {
+    const allActive = this.getStorage('mock_tenant_active_apps', []);
+    const filtered = allActive.filter((ta: TenantActiveApp) => ta.tenantId !== tenantId);
+    this.setStorage('mock_tenant_active_apps', [...filtered, ...apps]);
+  }
 }
 
 export const dbAdapter = new SupabaseMock();
@@ -1026,6 +1299,81 @@ const ENROLLMENT_MAP = {
   lessonsCompleted: 'lessons_completed'
 };
 
+const ACCOUNTING_ACCOUNT_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  code: 'code',
+  name: 'name',
+  type: 'type',
+  parentId: 'parent_id',
+  isActive: 'is_active'
+};
+
+const JOURNAL_ENTRY_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  description: 'description',
+  entryDate: 'entry_date',
+  status: 'status'
+};
+
+const JOURNAL_ITEM_MAP = {
+  id: 'id',
+  entryId: 'entry_id',
+  accountId: 'account_id',
+  debit: 'debit',
+  credit: 'credit',
+  costCenter: 'cost_center'
+};
+
+const WHITE_LABEL_SETTING_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  brandName: 'brand_name',
+  logoUrl: 'logo_url',
+  primaryColor: 'primary_color',
+  secondaryColor: 'secondary_color',
+  customEmailSender: 'custom_email_sender',
+  customEmailName: 'custom_email_name',
+  invoiceFooter: 'invoice_footer'
+};
+
+const PARTNER_MAP = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  tier: 'tier',
+  commissionRate: 'commission_rate',
+  createdAt: 'created_at'
+};
+
+const LICENSE_MAP = {
+  id: 'id',
+  partnerId: 'partner_id',
+  tenantId: 'tenant_id',
+  planTier: 'plan_tier',
+  seats: 'seats',
+  isOem: 'is_oem',
+  status: 'status',
+  issuedAt: 'issued_at'
+};
+
+const EDUCATION_SCHOOL_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  name: 'name',
+  address: 'address'
+};
+
+const EDUCATION_MEMBER_MAP = {
+  id: 'id',
+  tenantId: 'tenant_id',
+  schoolId: 'school_id',
+  name: 'name',
+  email: 'email',
+  role: 'role'
+};
+
 function mapToDb(obj: any, map: Record<string, string>, extra: any = {}) {
   const result: any = { ...extra };
   for (const [localKey, dbKey] of Object.entries(map)) {
@@ -1048,8 +1396,7 @@ function mapToLocal(dbObj: any, map: Record<string, string>) {
 
 // Background sync functions to remote Supabase
 async function syncTableToSupabase(tableKey: string, localItems: any[]) {
-  if (typeof window === 'undefined') return;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) return;
 
   const MAPS: Record<string, any> = {
     products: { dbTable: 'products', map: PRODUCT_MAP, tenantIdField: 'tenant_id' },
@@ -1064,7 +1411,15 @@ async function syncTableToSupabase(tableKey: string, localItems: any[]) {
     branch_inventory: { dbTable: 'branch_inventory', map: BRANCH_INVENTORY_MAP, tenantIdField: 'branch_id' },
     api_keys: { dbTable: 'api_keys', map: API_KEY_MAP, tenantIdField: 'tenant_id' },
     tenants: { dbTable: 'tenants', map: TENANT_MAP, tenantIdField: 'id' },
-    enrollments: { dbTable: 'enrollments', map: ENROLLMENT_MAP, tenantIdField: 'user_id' }
+    enrollments: { dbTable: 'enrollments', map: ENROLLMENT_MAP, tenantIdField: 'user_id' },
+    accounting_accounts: { dbTable: 'accounting_accounts', map: ACCOUNTING_ACCOUNT_MAP, tenantIdField: 'tenant_id' },
+    journal_entries: { dbTable: 'journal_entries', map: JOURNAL_ENTRY_MAP, tenantIdField: 'tenant_id' },
+    journal_items: { dbTable: 'journal_items', map: JOURNAL_ITEM_MAP, tenantIdField: 'none' },
+    white_label_settings: { dbTable: 'white_label_settings', map: WHITE_LABEL_SETTING_MAP, tenantIdField: 'tenant_id' },
+    partners_resellers: { dbTable: 'partners_resellers', map: PARTNER_MAP, tenantIdField: 'none' },
+    reseller_licenses: { dbTable: 'reseller_licenses', map: LICENSE_MAP, tenantIdField: 'none' },
+    education_schools: { dbTable: 'education_schools', map: EDUCATION_SCHOOL_MAP, tenantIdField: 'tenant_id' },
+    education_members: { dbTable: 'education_members', map: EDUCATION_MEMBER_MAP, tenantIdField: 'tenant_id' }
   };
 
   const config = MAPS[tableKey];
@@ -1128,8 +1483,7 @@ async function syncTableToSupabase(tableKey: string, localItems: any[]) {
 }
 
 async function syncFromSupabase() {
-  if (typeof window === 'undefined') return;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) return;
 
   try {
     const { getSupabase } = await import('@/lib/supabase-browser');
@@ -1223,6 +1577,55 @@ async function syncFromSupabase() {
       localStorage.setItem('mock_enrollments', JSON.stringify(dbEnrollments.map(e => mapToLocal(e, ENROLLMENT_MAP))));
     }
 
+    // Sync accounting_accounts
+    const { data: dbAccAccounts } = await supabase.from('accounting_accounts').select('*').eq('tenant_id', activeTenantId);
+    if (dbAccAccounts) {
+      localStorage.setItem('mock_accounting_accounts', JSON.stringify(dbAccAccounts.map(a => mapToLocal(a, ACCOUNTING_ACCOUNT_MAP))));
+    }
+
+    // Sync journal_entries & items
+    const { data: dbEntries } = await supabase.from('journal_entries').select('*').eq('tenant_id', activeTenantId);
+    if (dbEntries) {
+      localStorage.setItem('mock_journal_entries', JSON.stringify(dbEntries.map(e => mapToLocal(e, JOURNAL_ENTRY_MAP))));
+      const entryIds = dbEntries.map(e => e.id);
+      if (entryIds.length > 0) {
+        const { data: dbItems } = await supabase.from('journal_items').select('*').in('entry_id', entryIds);
+        if (dbItems) {
+          localStorage.setItem('mock_journal_items', JSON.stringify(dbItems.map(i => mapToLocal(i, JOURNAL_ITEM_MAP))));
+        }
+      }
+    }
+
+    // Sync white_label_settings
+    const { data: dbWhiteLabel } = await supabase.from('white_label_settings').select('*').eq('tenant_id', activeTenantId);
+    if (dbWhiteLabel) {
+      localStorage.setItem('mock_white_label_settings', JSON.stringify(dbWhiteLabel.map(w => mapToLocal(w, WHITE_LABEL_SETTING_MAP))));
+    }
+
+    // Sync partners_resellers
+    const { data: dbPartners } = await supabase.from('partners_resellers').select('*');
+    if (dbPartners) {
+      localStorage.setItem('mock_partners', JSON.stringify(dbPartners.map(p => mapToLocal(p, PARTNER_MAP))));
+    }
+
+    // Sync reseller_licenses
+    const { data: dbLicenses } = await supabase.from('reseller_licenses').select('*');
+    if (dbLicenses) {
+      localStorage.setItem('mock_reseller_licenses', JSON.stringify(dbLicenses.map(l => mapToLocal(l, LICENSE_MAP))));
+    }
+
+    // Sync education_schools
+    const { data: dbSchools } = await supabase.from('education_schools').select('*').eq('tenant_id', activeTenantId);
+    if (dbSchools) {
+      localStorage.setItem('mock_education_schools', JSON.stringify(dbSchools.map(s => mapToLocal(s, EDUCATION_SCHOOL_MAP))));
+    }
+
+    // Sync education_members
+    const { data: dbEduMembers } = await supabase.from('education_members').select('*').eq('tenant_id', activeTenantId);
+    if (dbEduMembers) {
+      localStorage.setItem('mock_education_members', JSON.stringify(dbEduMembers.map(m => mapToLocal(m, EDUCATION_MEMBER_MAP))));
+    }
+
     // Dispatch reload event to all client listeners
     window.dispatchEvent(new CustomEvent('db-sync-complete'));
 
@@ -1232,7 +1635,7 @@ async function syncFromSupabase() {
 }
 
 // Start auth state listener and initial sync on client load
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID')) {
   import('@/lib/supabase-browser').then(({ getSupabase }) => {
     const supabase = getSupabase();
     supabase.auth.onAuthStateChange((event, session) => {

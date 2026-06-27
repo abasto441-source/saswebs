@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [businessType, setBusinessType] = useState<'education' | 'tech'>('education');
   const [plan, setPlan] = useState<'Starter' | 'Pro' | 'Enterprise'>('Pro');
 
-  const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID');
 
   const systemRoles = [
     {
@@ -208,8 +208,44 @@ export default function LoginPage() {
           setLoading(false);
           return;
         }
-        // Any email → dashboard in demo mode
-        window.location.href = '/dashboard';
+
+        let userRole = 'owner';
+        let redirectPath = '/dashboard';
+        let name = 'Dueño (Owner)';
+        let tenantId = 't-celeste';
+
+        if (email === 'owner@nram360.com') {
+          userRole = 'owner';
+          redirectPath = '/dashboard';
+          name = 'Dueño (Owner)';
+        } else if (email === 'manager@nram360.com') {
+          userRole = 'manager';
+          redirectPath = '/dashboard';
+          name = 'Gerente (Manager)';
+        } else if (email === 'cajero@nram360.com') {
+          userRole = 'pos';
+          redirectPath = '/pos';
+          name = 'Cajero (POS)';
+        } else if (email === 'alumno@nram360.com') {
+          userRole = 'student';
+          redirectPath = '/mi-cuenta';
+          name = 'Alumno (Student)';
+        }
+
+        if (typeof window !== 'undefined') {
+          const userObj = {
+            id: `u-${userRole}`,
+            email: email,
+            name: name,
+            role: userRole,
+            tenantId: tenantId
+          };
+          localStorage.setItem('saswebs_user', JSON.stringify(userObj));
+          localStorage.setItem('saswebs_role', userRole);
+          localStorage.setItem('mock_active_tenant_id', tenantId);
+        }
+
+        window.location.href = redirectPath;
       }
     } catch (err) {
       setError('Error de conexión. Intenta de nuevo.');
