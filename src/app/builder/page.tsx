@@ -1423,7 +1423,7 @@ export default function BuilderPage() {
         </aside>
 
         {/* 3. CENTER EDITOR WORKSPACE CANVAS */}
-        <main className="flex-grow bg-slate-100 dark:bg-[#0c0c0e] overflow-y-auto p-8 flex justify-center">
+        <main className="flex-grow canvas-grid overflow-y-auto p-8 flex justify-center">
           <div 
             className={`bg-white dark:bg-[#121214] shadow-2xl transition-all duration-300 relative border border-gray-200 dark:border-gray-800 ${
               viewport === 'desktop' ? 'w-full max-w-6xl' : viewport === 'tablet' ? 'w-[768px]' : 'w-[375px]'

@@ -186,3 +186,16 @@ body {
 .pos-btn:active {
   transform: scale(0.96);
 }
+
+/* Canvas Dotted Grid (Canva/Figma style) */
+.canvas-grid {
+  background-color: #ffffff;
+  background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+.dark .canvas-grid {
+  background-color: #0b0f19;
+  background-image: radial-gradient(#1e293b 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
