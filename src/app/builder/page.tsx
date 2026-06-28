@@ -827,16 +827,16 @@ export default function BuilderPage() {
           
           <div className="flex border-b border-gray-200 dark:border-gray-800 p-2 gap-1 bg-gray-50/50 dark:bg-black/10">
             {[
-              { id: 'blocks', label: 'Bloques' },
-              { id: 'structure', label: 'Estructura' },
-              { id: 'pages', label: 'Páginas' },
+              { id: 'blocks', label: '🧩 Bloques' },
+              { id: 'structure', label: '🌳 Estructura' },
+              { id: 'pages', label: '📄 Páginas' },
               { id: 'ai_assistant', label: '🤖 Workers AI' },
               { id: 'git', label: '🌳 Git' }
             ].map(tab => (
               <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex-grow py-2 text-center text-[10px] font-black uppercase rounded-lg transition-colors ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-sm' : 'text-gray-500 hover:text-slate-950'}`}
+                className={`flex-grow py-2 text-center text-[10px] font-black uppercase rounded-lg transition-colors ${activeTab === tab.id ? 'bg-primary-celeste text-slate-950 font-bold shadow-sm' : 'text-gray-500 hover:text-slate-950'}`}
               >
                 {tab.label}
               </button>
@@ -913,7 +913,7 @@ export default function BuilderPage() {
                             key={block.type}
                             draggable
                             onDragStart={(e) => handleDragStart(e, block.type as Block['type'])}
-                            className="p-3 border border-dashed border-gray-200 rounded-xl bg-slate-50/50 hover:border-primary-celeste hover:bg-celeste-claro/5 cursor-grab active:cursor-grabbing transition-all group"
+                            className="p-3 bg-white border border-slate-150 rounded-2xl hover:border-primary-celeste hover:shadow-lg cursor-grab active:cursor-grabbing transition-all duration-300 group hover:-translate-y-0.5"
                           >
                             <div className="flex items-start gap-2.5 mb-2.5">
                               <div className="p-1.5 bg-celeste-claro/20 rounded-lg text-primary-celeste group-hover:scale-110 transition-transform">

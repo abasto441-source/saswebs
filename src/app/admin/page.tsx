@@ -450,6 +450,18 @@ export default function AdminPage() {
           >
             <Activity className="w-4 h-4 text-red-500" /> Consumo Edge & Telemetría
           </button>
+          
+          <button 
+            type="button"
+            onClick={() => {
+              dbAdapter.setActiveTenantId('t-main');
+              window.location.href = '/builder';
+            }}
+            className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-4 hover:scale-102 shrink-0"
+            title="Editar visualmente la landing page principal del SaaS"
+          >
+            🌐 Editar Web Principal
+          </button>
         </nav>
 
         <div className="mt-auto border-t border-slate-100 pt-4 flex flex-col gap-2 shrink-0">
