@@ -1611,6 +1611,90 @@ class SupabaseMock {
     const filtered = all.filter((r: any) => r.tenantId !== tenantId);
     this.setStorage('mock_erp_documents', [...filtered, ...data]);
   }
+
+  // ==================== P8: PROJECTS ====================
+  getProjects(tenantId: string): any[] {
+    return this.getStorage('mock_projects', [
+      { id: 'proj-1', tenantId, name: 'Rediseño Web Corporativa', status: 'active', color: '#7c3aed' },
+      { id: 'proj-2', tenantId, name: 'Implementación ERP', status: 'active', color: '#0891b2' },
+      { id: 'proj-3', tenantId, name: 'Campaña Q3 Marketing', status: 'done', color: '#059669' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  saveProjects(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_projects', []);
+    this.setStorage('mock_projects', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
+  getProjTasks(tenantId: string): any[] {
+    return this.getStorage('mock_proj_tasks', [
+      { id: 't-1', tenantId, projectId: 'proj-1', title: 'Diseño wireframes home', assignee: 'Ana García', priority: 'high', status: 'done', due: '2026-06-15' },
+      { id: 't-2', tenantId, projectId: 'proj-1', title: 'Maquetación responsive', assignee: 'Carlos López', priority: 'high', status: 'in_progress', due: '2026-07-05' },
+      { id: 't-3', tenantId, projectId: 'proj-2', title: 'Migración datos contables', assignee: 'Luis Rojas', priority: 'medium', status: 'todo', due: '2026-07-20' },
+      { id: 't-4', tenantId, projectId: 'proj-1', title: 'Pruebas de usabilidad', assignee: 'Ana García', priority: 'low', status: 'todo', due: '2026-07-10' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  saveProjTasks(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_proj_tasks', []);
+    this.setStorage('mock_proj_tasks', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
+  getProjSprints(tenantId: string): any[] {
+    return this.getStorage('mock_proj_sprints', [
+      { id: 'sp-1', tenantId, name: 'Sprint 1 — Fundamentos', start: '2026-06-01', end: '2026-06-14', status: 'done' },
+      { id: 'sp-2', tenantId, name: 'Sprint 2 — Componentes UI', start: '2026-06-15', end: '2026-06-28', status: 'active' },
+      { id: 'sp-3', tenantId, name: 'Sprint 3 — Integraciones', start: '2026-06-29', end: '2026-07-12', status: 'planned' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  saveProjSprints(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_proj_sprints', []);
+    this.setStorage('mock_proj_sprints', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
+  getProjMilestones(tenantId: string): any[] {
+    return this.getStorage('mock_proj_milestones', [
+      { id: 'ms-1', tenantId, name: 'MVP Lanzado', date: '2026-07-15', status: 'pending' },
+      { id: 'ms-2', tenantId, name: 'Primer cliente enterprise', date: '2026-08-01', status: 'pending' },
+      { id: 'ms-3', tenantId, name: 'Certificación ISO 27001', date: '2026-09-30', status: 'pending' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  saveProjMilestones(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_proj_milestones', []);
+    this.setStorage('mock_proj_milestones', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
+
+  // ==================== P11: BRANCHES ====================
+  getBranches(tenantId: string): any[] {
+    return this.getStorage('mock_branches', [
+      { id: 'br-1', tenantId, name: 'Casa Matriz', city: 'Santiago', manager: 'Roberto Soto', sales: 145000, stock: 842, status: 'active' },
+      { id: 'br-2', tenantId, name: 'Sucursal Norte', city: 'Antofagasta', manager: 'Carmen Díaz', sales: 78000, stock: 340, status: 'active' },
+      { id: 'br-3', tenantId, name: 'Sucursal Sur', city: 'Concepción', manager: 'Miguel Torres', sales: 62000, stock: 215, status: 'active' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  saveBranches(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_branches', []);
+    this.setStorage('mock_branches', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
+
+  // ==================== P12: CLIENT PORTAL ====================
+  getPortalClients(tenantId: string): any[] {
+    return this.getStorage('mock_portal_clients', [
+      { id: 'pc-1', tenantId, name: 'María González', email: 'mgonzalez@empresa.cl', company: 'Constructora Andina', plan: 'Pro', since: '2026-01-15', status: 'active' },
+      { id: 'pc-2', tenantId, name: 'Alejandro Muñoz', email: 'amunoz@retail.com', company: 'Retail Patagonia S.A.', plan: 'Enterprise', since: '2025-11-01', status: 'active' },
+      { id: 'pc-3', tenantId, name: 'Sofía Vargas', email: 'svargas@fintech.io', company: 'FinTech Soluciones', plan: 'Starter', since: '2026-03-20', status: 'trial' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  savePortalClients(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_portal_clients', []);
+    this.setStorage('mock_portal_clients', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
+  getPortalTickets(tenantId: string): any[] {
+    return this.getStorage('mock_portal_tickets', [
+      { id: 'pt-1', tenantId, clientId: 'pc-1', title: 'Error al exportar reporte PDF', desc: 'El botón de exportar no genera el archivo correctamente.', status: 'open', priority: 'high', date: '2026-06-27' },
+      { id: 'pt-2', tenantId, clientId: 'pc-2', title: 'Solicitud integración API con SAP', desc: 'Necesitamos conectar nuestro SAP B1 via REST API.', status: 'in_progress', priority: 'medium', date: '2026-06-25' },
+      { id: 'pt-3', tenantId, clientId: 'pc-3', title: 'Pregunta sobre facturación', desc: '¿Cuándo se renueva el plan mensual?', status: 'resolved', priority: 'low', date: '2026-06-20' }
+    ]).filter((r: any) => r.tenantId === tenantId);
+  }
+  savePortalTickets(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_portal_tickets', []);
+    this.setStorage('mock_portal_tickets', [...all.filter((r: any) => r.tenantId !== tenantId), ...data]);
+  }
 }
 
 export const dbAdapter = new SupabaseMock();

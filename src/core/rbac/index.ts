@@ -551,6 +551,16 @@ export function getAllowedTabs(user: UserSession): string[] {
   if (hasPermission(user, PERMISSIONS.COMPANY_AUDIT_READ))      tabs.push("helpdesk_support");
   if (hasPermission(user, PERMISSIONS.COMPANY_USERS_ASSIGN_ROLES)) tabs.push("hr_payroll");
 
+  // P8-P12 and ERP PRO
+  if (hasPermission(user, PERMISSIONS.COMPANY_SETTINGS_READ)) {
+    tabs.push("erp_pro");
+    tabs.push("projects_pro");
+    tabs.push("module_marketplace");
+    tabs.push("ai_assistant");
+    tabs.push("multi_branch");
+    tabs.push("client_portal");
+  }
+
   return tabs;
 }
 

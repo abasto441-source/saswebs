@@ -8,7 +8,8 @@ import {
   Grid, Calendar, CreditCard, Truck, Zap, Activity, Cpu, Key, Play, AlertCircle,
   FileText, Shield, List, Workflow, Layers, Eye, Download, Code, Database, X, Printer,
   MapPin, TrendingUp, Package, ArrowLeftRight, BarChart3, AlertOctagon, CheckCircle2, Type, Hash, Image as ImageIcon, Link as LinkIcon, CalendarDays,
-  Book, Coins, Briefcase, Building, Award, FileSpreadsheet, Boxes, FileSignature, Wallet
+  Book, Coins, Briefcase, Building, Award, FileSpreadsheet, Boxes, FileSignature, Wallet,
+  LayoutGrid, User, Sparkles, MessageSquare, GitBranch, CheckSquare, Flag, Bot, Send, Store
 } from 'lucide-react';
 import Link from 'next/link';
 import { hasPermission, getAllowedTabs, PERMISSIONS, type Permission } from '@/core/rbac';
@@ -45,7 +46,8 @@ export default function DashboardPage() {
     'reservations' | 'cms' | 'workflows' | 'integrations' | 'billing' | 'audit' | 'reports' | 'api' | 'franquicias' |
     'accounting_accounts' | 'accounting_entries' | 'accounting_reports' |
     'education_schools' | 'education_members' | 'whitelabel' |
-    'crm_pipeline' | 'fulfillment_orders' | 'inventory_warehouses' | 'helpdesk_support' | 'hr_payroll' | 'erp_pro'
+    'crm_pipeline' | 'fulfillment_orders' | 'inventory_warehouses' | 'helpdesk_support' | 'hr_payroll' | 'erp_pro' |
+    'projects_pro' | 'module_marketplace' | 'ai_assistant' | 'multi_branch' | 'client_portal'
   >('analytics');
   
   // Edit variables
@@ -85,7 +87,7 @@ export default function DashboardPage() {
   const [newFieldRelation, setNewFieldRelation] = useState('');
 
   // Franchise / Sucursales States
-  const [branches, setBranches] = useState<BranchLocation[]>([]);
+  const [branchOffices, setBranchOffices] = useState<BranchLocation[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [branchInventory, setBranchInventory] = useState<BranchInventory[]>([]);
   const [transferQty, setTransferQty] = useState<Record<string, string>>({});
@@ -328,6 +330,52 @@ export default function DashboardPage() {
   const [newSigDocId, setNewSigDocId] = useState('');
   const [newSigSigner, setNewSigSigner] = useState('');
 
+  // ==================== P8: PROJECTS PRO ====================
+  const [projSubTab, setProjSubTab] = useState<'tasks'|'sprints'|'milestones'|'gantt'>('tasks');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projTasks, setProjTasks] = useState<any[]>([]);
+  const [projSprints, setProjSprints] = useState<any[]>([]);
+  const [projMilestones, setProjMilestones] = useState<any[]>([]);
+  const [newProjName, setNewProjName] = useState('');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskProject, setNewTaskProject] = useState('');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'low'|'medium'|'high'>('medium');
+  const [newTaskDue, setNewTaskDue] = useState('');
+  const [newSprintName, setNewSprintName] = useState('');
+  const [newSprintStart, setNewSprintStart] = useState('');
+  const [newSprintEnd, setNewSprintEnd] = useState('');
+  const [newMilestoneName, setNewMilestoneName] = useState('');
+  const [newMilestoneDate, setNewMilestoneDate] = useState('');
+
+  // ==================== P9: MODULE MARKETPLACE ====================
+  const [moduleSearch, setModuleSearch] = useState('');
+
+  // ==================== P10: AI ASSISTANT ====================
+  const [aiMessages, setAiMessages] = useState<any[]>([
+    { role: 'assistant', text: '¡Hola! Soy tu asistente IA integrado. Puedo analizar tus datos financieros, ayudarte con reportes, sugirerte acciones de ventas o responder preguntas sobre tu negocio. ¿En qué te ayudo hoy?' }
+  ]);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // ==================== P11: MULTI-BRANCH ====================
+  const [multiBranches, setMultiBranches] = useState<any[]>([]);
+  const [branchSubTab, setBranchSubTab] = useState<'list'|'consolidation'|'stock'>('list');
+  const [newBranchName, setNewBranchName] = useState('');
+  const [newBranchCity, setNewBranchCity] = useState('');
+  const [newBranchManager, setNewBranchManager] = useState('');
+
+  // ==================== P12: CLIENT PORTAL ====================
+  const [portalSubTab, setPortalSubTab] = useState<'clients'|'tickets'|'invoices'|'quotes'>('clients');
+  const [portalClients, setPortalClients] = useState<any[]>([]);
+  const [portalTickets, setPortalTickets] = useState<any[]>([]);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientCompany, setNewClientCompany] = useState('');
+  const [newTicketTitle, setNewTicketTitle] = useState('');
+  const [newTicketDesc, setNewTicketDesc] = useState('');
+  const [newTicketClient, setNewTicketClient] = useState('');
+
   // Helper check for Read-Only guest mode
   const isGuestMode = activeRole === 'invitado';
 
@@ -345,7 +393,7 @@ export default function DashboardPage() {
     setIntegrations(dbAdapter.getIntegrations().filter(i => i.tenantId === active.id));
     setAuditLogs(dbAdapter.getAuditLogs().filter(l => l.tenantId === active.id));
     setApiKeys(dbAdapter.getApiKeys().filter(k => k.tenantId === active.id));
-    setBranches(dbAdapter.getBranchLocations(active.id));
+    setBranchOffices(dbAdapter.getBranchLocations(active.id));
 
     setCustomDomain(active.customDomain || '');
     setFavicon(active.favicon || '🎨');
@@ -410,6 +458,14 @@ export default function DashboardPage() {
     setErpPurchaseOrders(dbAdapter.getErpPurchaseOrders(active.id));
     setErpMaintenanceTasks(dbAdapter.getErpMaintenanceTasks(active.id));
     setErpDocuments(dbAdapter.getErpDocuments(active.id));
+    // P8-P12
+    setProjects(dbAdapter.getProjects(active.id));
+    setProjTasks(dbAdapter.getProjTasks(active.id));
+    setProjSprints(dbAdapter.getProjSprints(active.id));
+    setProjMilestones(dbAdapter.getProjMilestones(active.id));
+    setMultiBranches(dbAdapter.getBranches(active.id));
+    setPortalClients(dbAdapter.getPortalClients(active.id));
+    setPortalTickets(dbAdapter.getPortalTickets(active.id));
   };
 
   useEffect(() => {
@@ -2398,6 +2454,37 @@ export default function DashboardPage() {
             </button>
           )}
 
+          {isTabVisible('projects_pro') && (
+            <button onClick={() => setActiveTab('projects_pro')} className={getNavBtnClass('projects_pro')}>
+              <LayoutGrid className="w-3.5 h-3.5 text-violet-500 font-bold" /> Proyectos
+            </button>
+          )}
+
+          {isTabVisible('multi_branch') && (
+            <button onClick={() => setActiveTab('multi_branch')} className={getNavBtnClass('multi_branch')}>
+              <Building className="w-3.5 h-3.5 text-cyan-500 font-bold" /> Multi-Sucursal
+            </button>
+          )}
+
+          {isTabVisible('client_portal') && (
+            <button onClick={() => setActiveTab('client_portal')} className={getNavBtnClass('client_portal')}>
+              <User className="w-3.5 h-3.5 text-pink-500 font-bold" /> Portal Cliente
+            </button>
+          )}
+
+          {isTabVisible('module_marketplace') && (
+            <button onClick={() => setActiveTab('module_marketplace')} className={getNavBtnClass('module_marketplace')}>
+              <ShoppingBag className="w-3.5 h-3.5 text-emerald-500 font-bold" /> Marketplace
+            </button>
+          )}
+
+          {isTabVisible('ai_assistant') && (
+            <button onClick={() => setActiveTab('ai_assistant')} className={getNavBtnClass('ai_assistant')}>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 font-bold" /> Asistente IA
+            </button>
+          )}
+
+
           {/* NIVEL 3 — SERVICIOS TRANSVERSALES */}
           <span className="text-[9px] font-black uppercase text-slate-400 px-4 mt-3 mb-1 block">NIVEL 3 — SERVICIOS</span>
 
@@ -2944,11 +3031,11 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2 p-6 rounded-2xl bg-gradient-to-br from-primary-celeste to-cyan-400 text-slate-950 shadow-lg flex flex-col gap-1">
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-70">MRR Total Multi-Sede</span>
-                <span className="text-3xl font-black">${branches.reduce((acc, b) => acc + b.mrr, 0).toLocaleString()}</span>
-                <span className="text-[11px] font-bold opacity-80">📈 +8.2% vs mes anterior · {branches.filter(b => b.isActive).length} sedes activas</span>
+                <span className="text-3xl font-black">${branchOffices.reduce((acc, b) => acc + b.mrr, 0).toLocaleString()}</span>
+                <span className="text-[11px] font-bold opacity-80">📈 +8.2% vs mes anterior · {branchOffices.filter(b => b.isActive).length} sedes activas</span>
               </div>
-              {branches.slice(0, 2).map(br => (
-                <div key={br.id} className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col gap-1.5">
+              {branchOffices.slice(0, 2).map(br => (
+                <div key={br.id} className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col gap-1.5 border-t border-slate-100">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{br.name}</span>
                   <span className="text-xl font-black text-slate-900">${br.mrr.toLocaleString()}</span>
                   <div className="flex items-center gap-1.5">
@@ -2960,9 +3047,9 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {branches.map((br) => {
+              {branchOffices.map((br) => {
                 const isSelected = selectedBranchId === br.id;
-                const totalMrr = branches.reduce((a, b) => a + b.mrr, 0);
+                const totalMrr = branchOffices.reduce((a, b) => a + b.mrr, 0);
                 return (
                   <div key={br.id} onClick={() => { setSelectedBranchId(br.id); setBranchInventory(dbAdapter.getBranchInventory(br.id)); }}
                     className={`p-5 rounded-2xl border cursor-pointer transition-all ${isSelected ? 'border-primary-celeste bg-celeste-claro/5 shadow-md' : 'border-slate-200 bg-white hover:border-primary-celeste/50'}`}>
@@ -2994,7 +3081,7 @@ export default function DashboardPage() {
               <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <span className="font-extrabold text-sm text-slate-800 block">Inventario: {branches.find(b => b.id === selectedBranchId)?.name}</span>
+                    <span className="font-extrabold text-sm text-slate-800 block">Inventario: {branchOffices.find(b => b.id === selectedBranchId)?.name}</span>
                     <p className="text-xs text-slate-400 mt-1">Simula transferencias de stock entre sedes</p>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-bold text-primary-celeste"><Package className="w-4 h-4" /> {branchInventory.length} SKUs</div>
@@ -6371,6 +6458,628 @@ export default function DashboardPage() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* ==================== P8: PROYECTOS PRO ==================== */}
+        {activeTab === 'projects_pro' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[{ label: 'Proyectos Activos', val: projects.filter(p=>p.status==='active').length, color: 'text-violet-600' },
+                { label: 'Tareas Totales', val: projTasks.length, color: 'text-blue-600' },
+                { label: 'Sprints Activos', val: projSprints.filter(s=>s.status==='active').length, color: 'text-emerald-600' },
+                { label: 'Hitos Pendientes', val: projMilestones.filter(m=>m.status==='pending').length, color: 'text-orange-500' }
+              ].map(k => (
+                <div key={k.label} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                  <span className="text-[10px] font-black uppercase text-slate-400">{k.label}</span>
+                  <span className={`text-2xl font-black block mt-1 ${k.color}`}>{k.val}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Project pills */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs font-black text-slate-500">Proyectos:</span>
+              {projects.map(p => (
+                <span key={p.id} className="px-3 py-1 rounded-full text-[10px] font-black text-white" style={{ backgroundColor: p.color }}>{p.name}</span>
+              ))}
+              <form onSubmit={e => { e.preventDefault(); if (!tenant || !newProjName) return;
+                const proj = { id:'proj-'+Date.now(), tenantId: tenant.id, name: newProjName, status:'active', color:['#7c3aed','#0891b2','#dc2626','#d97706','#059669'][Math.floor(Math.random()*5)] };
+                const list = [...projects, proj]; dbAdapter.saveProjects(tenant.id, list); setProjects(list); setNewProjName('');
+              }} className="flex gap-2">
+                <input type="text" placeholder="Nuevo proyecto..." value={newProjName} onChange={e=>setNewProjName(e.target.value)} className="px-3 py-1 text-xs border border-slate-200 rounded-xl bg-slate-50" />
+                <button type="submit" className="px-3 py-1 bg-violet-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-violet-750 transition-all">+ Crear</button>
+              </form>
+            </div>
+
+            {/* Sub-Nav */}
+            <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+              {[['tasks','📋 Tareas'],['sprints','⚡ Sprints'],['milestones','🏁 Hitos'],['gantt','📊 Vista Gantt']].map(([k,l]) => (
+                <button key={k} onClick={()=>setProjSubTab(k as any)}
+                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${projSubTab===k?'bg-slate-900 text-white shadow-md':'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}>{l}</button>
+              ))}
+            </div>
+
+            {/* TASKS */}
+            {projSubTab === 'tasks' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Nueva Tarea</span>
+                  <form onSubmit={e => { e.preventDefault(); if (!tenant||!newTaskTitle) return;
+                    const t = { id:'t-'+Date.now(), tenantId:tenant.id, projectId:newTaskProject||projects[0]?.id||'', title:newTaskTitle, assignee:newTaskAssignee, priority:newTaskPriority, status:'todo', due:newTaskDue };
+                    const list=[...projTasks,t]; dbAdapter.saveProjTasks(tenant.id,list); setProjTasks(list);
+                    setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue('');
+                  }} className="flex flex-col gap-3 text-xs font-semibold">
+                    <input required type="text" placeholder="Título de la tarea" value={newTaskTitle} onChange={e=>setNewTaskTitle(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <select value={newTaskProject} onChange={e=>setNewTaskProject(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                      <option value="">Seleccionar proyecto</option>
+                      {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <input type="text" placeholder="Asignado a" value={newTaskAssignee} onChange={e=>setNewTaskAssignee(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <div className="grid grid-cols-2 gap-3">
+                      <select value={newTaskPriority} onChange={e=>setNewTaskPriority(e.target.value as any)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        <option value="low">🟢 Baja</option><option value="medium">🟡 Media</option><option value="high">🔴 Alta</option>
+                      </select>
+                      <input type="date" value={newTaskDue} onChange={e=>setNewTaskDue(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono outline-none"/>
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold shadow">+ Crear Tarea</button>
+                  </form>
+                </div>
+                <div className="lg:col-span-2">
+                  <div className="grid grid-cols-3 gap-4">
+                    {[['todo','📋 Por Hacer','bg-slate-100'],['in_progress','⚡ En Progreso','bg-blue-50'],['done','✅ Hecho','bg-green-50']].map(([status, label, bg]) => (
+                      <div key={status} className={`p-4 rounded-2xl border border-slate-200 ${bg} min-h-[300px]`}>
+                        <span className="text-xs font-black text-slate-600 block mb-3">{label} ({projTasks.filter(t=>t.status===status).length})</span>
+                        <div className="space-y-2">
+                          {projTasks.filter(t=>t.status===status).map(task => (
+                            <div key={task.id} className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 text-[10px]">
+                              <p className="font-bold text-slate-800 mb-1">{task.title}</p>
+                              <p className="text-gray-400">{projects.find(p=>p.id===task.projectId)?.name || 'Sin proyecto'}</p>
+                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50">
+                                <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[8px] ${task.priority==='high'?'bg-red-100 text-red-700':task.priority==='medium'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}`}>
+                                  {task.priority==='high'?'Alta':task.priority==='medium'?'Media':'Baja'}
+                                </span>
+                                {status !== 'done' && (
+                                  <button onClick={()=>{ const updated=projTasks.map(t=>t.id===task.id?{...t,status:status==='todo'?'in_progress':'done'}:t);
+                                    dbAdapter.saveProjTasks(tenant?.id||'',updated); setProjTasks(updated);
+                                  }} className="text-violet-600 font-bold hover:underline text-xs">→</button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SPRINTS */}
+            {projSubTab === 'sprints' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Nuevo Sprint</span>
+                  <form onSubmit={e=>{e.preventDefault(); if(!tenant||!newSprintName) return;
+                    const sp={id:'sp-'+Date.now(),tenantId:tenant.id,name:newSprintName,start:newSprintStart,end:newSprintEnd,status:'planned'};
+                    const list=[...projSprints,sp]; dbAdapter.saveProjSprints(tenant.id,list); setProjSprints(list);
+                    setNewSprintName(''); setNewSprintStart(''); setNewSprintEnd('');
+                  }} className="flex flex-col gap-3 text-xs font-semibold">
+                    <input required type="text" placeholder="Nombre del Sprint" value={newSprintName} onChange={e=>setNewSprintName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><label className="text-gray-500 block mb-1">Inicio</label><input type="date" value={newSprintStart} onChange={e=>setNewSprintStart(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono w-full text-[10px] outline-none"/></div>
+                      <div><label className="text-gray-500 block mb-1">Fin</label><input type="date" value={newSprintEnd} onChange={e=>setNewSprintEnd(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono w-full text-[10px] outline-none"/></div>
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow">+ Crear Sprint</button>
+                  </form>
+                </div>
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Sprints del Proyecto</span>
+                  <div className="space-y-3 text-xs">
+                    {projSprints.map(sp => {
+                      const start = new Date(sp.start).getTime(); const end = new Date(sp.end).getTime();
+                      const duration = end - start; const now = Date.now();
+                      const elapsed = Math.min(Math.max(now - start, 0), duration);
+                      const pct = duration > 0 ? Math.round((elapsed/duration)*100) : 0;
+                      return (
+                        <div key={sp.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold text-slate-900">{sp.name}</span>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${sp.status==='active'?'bg-blue-100 text-blue-700':sp.status==='done'?'bg-green-100 text-green-700':'bg-slate-100 text-slate-500'}`}>
+                              {sp.status==='active'?'Activo':sp.status==='done'?'Finalizado':'Planificado'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mb-2">{sp.start} → {sp.end}</p>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5">
+                            <div className="bg-emerald-400 h-1.5 rounded-full" style={{width:`${pct}%`}}/>
+                          </div>
+                          <div className="flex justify-between mt-1"><span className="text-[9px] text-gray-400">{pct}% transcurrido</span>
+                            {sp.status==='planned' && <button onClick={()=>{const u=projSprints.map(s=>s.id===sp.id?{...s,status:'active'}:s);dbAdapter.saveProjSprints(tenant?.id||'',u);setProjSprints(u);}} className="text-[9px] font-bold text-emerald-600 hover:underline">Iniciar Sprint</button>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MILESTONES */}
+            {projSubTab === 'milestones' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Nuevo Hito</span>
+                  <form onSubmit={e=>{e.preventDefault();if(!tenant||!newMilestoneName)return;
+                    const ms={id:'ms-'+Date.now(),tenantId:tenant.id,name:newMilestoneName,date:newMilestoneDate,status:'pending'};
+                    const list=[...projMilestones,ms]; dbAdapter.saveProjMilestones(tenant.id,list); setProjMilestones(list);
+                    setNewMilestoneName(''); setNewMilestoneDate('');
+                  }} className="flex flex-col gap-3 text-xs font-semibold">
+                    <input required type="text" placeholder="Nombre del hito" value={newMilestoneName} onChange={e=>setNewMilestoneName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <input type="date" value={newMilestoneDate} onChange={e=>setNewMilestoneDate(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono outline-none"/>
+                    <button type="submit" className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow">+ Crear Hito</button>
+                  </form>
+                </div>
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Timeline de Hitos</span>
+                  <div className="relative pl-6 border-l-2 border-slate-200 space-y-6">
+                    {projMilestones.sort((a,b)=>a.date.localeCompare(b.date)).map(ms => (
+                      <div key={ms.id} className="relative">
+                        <div className={`absolute -left-[29px] w-4 h-4 rounded-full border-2 border-white ${ms.status==='done'?'bg-green-500':'bg-orange-400'}`}/>
+                        <div className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-slate-900">🏁 {ms.name}</span>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black ${ms.status==='done'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'}`}>
+                              {ms.status==='done'?'✅ Logrado':'⏳ Pendiente'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-1">{ms.date}</p>
+                          {ms.status==='pending' && <button onClick={()=>{const u=projMilestones.map(m=>m.id===ms.id?{...m,status:'done'}:m);dbAdapter.saveProjMilestones(tenant?.id||'',u);setProjMilestones(u);}} className="mt-2 text-[9px] font-bold text-green-600 hover:underline">✓ Marcar como logrado</button>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* GANTT */}
+            {projSubTab === 'gantt' && (
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md overflow-x-auto">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">📊 Vista Gantt — Tareas por Fecha</span>
+                <div className="min-w-[700px]">
+                  <div className="grid grid-cols-12 mb-3">
+                    {['Jun','Jul','Ago','Sep','Oct','Nov'].map(m=>(
+                      <div key={m} className="col-span-2 text-[9px] font-black text-slate-400 text-center border-l border-slate-100">{m} 2026</div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    {projTasks.map(task => {
+                      const start = task.due ? new Date(task.due).getMonth() - 5 : 0;
+                      const col = Math.max(0, Math.min(start, 11));
+                      const proj = projects.find(p=>p.id===task.projectId);
+                      return (
+                        <div key={task.id} className="grid grid-cols-12 items-center h-8">
+                          <div className="col-span-3 text-[10px] font-semibold text-slate-700 truncate pr-2">{task.title}</div>
+                          <div className="col-span-9 relative h-5">
+                            <div className="absolute h-5 rounded-full px-2 flex items-center text-[8px] font-black text-white"
+                              style={{ left:`${(col/9)*100}%`, width:'18%', backgroundColor: proj?.color || '#7c3aed', maxWidth:'120px' }}>
+                              {task.assignee?.split(' ')[0] || '—'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== P9: MODULE MARKETPLACE ==================== */}
+        {activeTab === 'module_marketplace' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-slate-900">🛒 Marketplace de Módulos</h2>
+                <p className="text-xs text-slate-500 mt-1">Activa o desactiva módulos para este tenant. Los cambios se aplican en tiempo real.</p>
+              </div>
+              <input type="text" placeholder="Buscar módulo..." value={moduleSearch} onChange={e=>setModuleSearch(e.target.value)}
+                className="px-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 w-48 outline-none"/>
+            </div>
+            {[
+              { key:'core', label:'🏛️ Core Platform', desc:'Auth, RBAC, Multitenant, Billing, Audit Log', price:'Incluido', active:true, locked:true },
+              { key:'accounting', label:'💼 Contabilidad PRO', desc:'Plan cuentas, asientos, NIIF, facturación electrónica XML UBL', price:'$49/mes', active:true, locked:false },
+              { key:'crm', label:'🎯 CRM PRO', desc:'Pipeline, contactos, WhatsApp Business, forecast, campañas', price:'$39/mes', active:true, locked:false },
+              { key:'erp', label:'⚙️ ERP PRO', desc:'Producción, calidad, compras, mantenimiento, nómina avanzada', price:'$69/mes', active:true, locked:false },
+              { key:'projects', label:'📋 Proyectos PRO', desc:'Tareas Kanban, sprints, hitos, vista Gantt', price:'$29/mes', active:true, locked:false },
+              { key:'ecommerce', label:'🛍️ eCommerce', desc:'Tienda online, carrito, pagos, fulfillment', price:'$29/mes', active:tenant?.isEcommerceEnabled || false, locked:false },
+              { key:'lms', label:'🎓 LMS / Academia', desc:'Cursos, alumnos, certificados, progreso', price:'$39/mes', active:tenant?.isLmsEnabled || false, locked:false },
+              { key:'helpdesk', label:'🎫 HelpDesk', desc:'Tickets, SLA, prioridades, agentes', price:'$19/mes', active:true, locked:false },
+              { key:'documents', label:'📁 Documentos & Firmas', desc:'Repositorio corporativo, firma electrónica eIDAS', price:'$19/mes', active:true, locked:false },
+              { key:'analytics', label:'📊 Analytics Avanzado', desc:'Dashboards BI, métricas en tiempo real, embudo de conversión', price:'$25/mes', active:true, locked:false },
+              { key:'whitelabel', label:'🎨 White Label', desc:'Logo, colores, dominio propio, branding completo', price:'$49/mes', active:true, locked:false },
+              { key:'ai', label:'🤖 Asistente IA', desc:'Chat GPT integrado, análisis de datos, recomendaciones', price:'$35/mes', active:true, locked:false },
+            ].filter(m => !moduleSearch || m.label.toLowerCase().includes(moduleSearch.toLowerCase()) || m.desc.toLowerCase().includes(moduleSearch.toLowerCase()))
+            .map(mod => (
+              <div key={mod.key} className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${mod.active?'bg-white border-slate-200 shadow-sm':'bg-slate-50 border-slate-100 opacity-70'}`}>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-black text-slate-900">{mod.label}</span>
+                    {mod.locked && <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[8px] font-black rounded uppercase">Core</span>}
+                    {mod.active && !mod.locked && <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[8px] font-black rounded uppercase">Activo</span>}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">{mod.desc}</p>
+                </div>
+                <div className="flex items-center gap-4 ml-4 flex-shrink-0">
+                  <span className="text-xs font-black text-slate-700">{mod.price}</span>
+                  {mod.locked ? (
+                    <div className="w-12 h-6 bg-slate-300 rounded-full flex items-center justify-end px-1 cursor-not-allowed">
+                      <div className="w-4 h-4 bg-white rounded-full shadow"/>
+                    </div>
+                  ) : (
+                    <button onClick={() => {
+                      dbAdapter.addAuditLog(tenant?.id||'', `${activeRole}@tenant.com`, mod.active?'Módulo Desactivado':'Módulo Activado', mod.label);
+                      alert(`Módulo "${mod.label}" ${mod.active?'desactivado':'activado'}. Los cambios se reflejarán en el próximo inicio de sesión.`);
+                    }} className={`w-12 h-6 rounded-full flex items-center transition-all px-1 ${mod.active?'bg-emerald-500 justify-end':'bg-slate-200 justify-start'}`}>
+                      <div className="w-4 h-4 bg-white rounded-full shadow"/>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ==================== P10: AI ASSISTANT ==================== */}
+        {activeTab === 'ai_assistant' && (
+          <div className="animate-fade-in flex flex-col" style={{height:'75vh'}}>
+            <div className="flex items-center gap-3 p-5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl text-white">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <Bot className="w-5 h-5"/>
+              </div>
+              <div>
+                <span className="font-black text-sm block">Asistente IA — SASWebs Intelligence</span>
+                <span className="text-[10px] text-amber-100">Powered by AI · Contexto empresarial completo · GPT-4o</span>
+              </div>
+              <div className="ml-auto flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-amber-200 animate-pulse"/>
+                <span className="text-[9px] text-amber-100 font-bold">En línea</span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 bg-slate-50 space-y-4 border border-t-0 border-slate-200">
+              {aiMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role==='user'?'justify-end':'justify-start'}`}>
+                  <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-xs leading-relaxed ${msg.role==='user'?'bg-slate-900 text-white rounded-tr-sm':'bg-white border border-slate-200 text-slate-800 shadow-sm rounded-tl-sm'}`}>
+                    {msg.role==='assistant' && <span className="block text-[9px] font-black text-amber-500 mb-1">🤖 IA SASWebs</span>}
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {aiLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex gap-1 items-center">
+                    {[0,1,2].map(i=><div key={i} className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{animationDelay:`${i*0.15}s`}}/>)}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-white border border-t-0 border-slate-200 rounded-b-2xl">
+              <form onSubmit={async e => {
+                e.preventDefault();
+                if (!aiInput.trim()) return;
+                const userMsg = { role:'user', text: aiInput.trim() };
+                setAiMessages(prev => [...prev, userMsg]);
+                setAiInput('');
+                setAiLoading(true);
+                const q = aiInput.toLowerCase();
+                const ventas = products.reduce((s:number,p:any)=>s+(p.price||0)*(p.stock||0),0);
+                const empleados = employees.filter((e:any)=>e.status==='active').length;
+                await new Promise(r=>setTimeout(r,1200));
+                let resp = '';
+                if (q.includes('venta') || q.includes('ingreso') || q.includes('revenue')) {
+                  resp = `📊 Basándome en tu inventario actual, el valor total de stock es **$${ventas.toLocaleString()}**. Tienes ${products.length} productos activos. Te recomiendo revisar los productos con menor rotación para optimizar capital de trabajo.`;
+                } else if (q.includes('empleado') || q.includes('nómina') || q.includes('rrhh')) {
+                  resp = `👥 Tienes **${empleados} empleados activos** con un costo total de nómina de **$${employees.reduce((s:number,e:any)=>s+(e.salary||0),0).toLocaleString()}**. El neto a pagar (85%) es **$${(employees.reduce((s:number,e:any)=>s+(e.salary||0),0)*0.85).toLocaleString()}**. Sugiero revisar la estructura de cargos.`;
+                } else if (q.includes('proyecto') || q.includes('sprint') || q.includes('tarea')) {
+                  resp = `📋 Tienes **${projects.length} proyectos activos** con **${projTasks.filter(t=>t.status==='in_progress').length} tareas en progreso**. El sprint actual termina el ${projSprints.find(s=>s.status==='active')?.end || 'próximamente'}. Recomiendo hacer un daily standup para destrabar bloqueos.`;
+                } else if (q.includes('cliente') || q.includes('crm') || q.includes('lead')) {
+                  resp = `🎯 El portal del cliente tiene **${portalClients.length} clientes registrados** y **${portalTickets.filter(t=>t.status==='open').length} tickets abiertos** pendientes de atención. Los tickets de alta prioridad requieren respuesta en menos de 4 horas según SLA.`;
+                } else if (q.includes('reporte') || q.includes('informe') || q.includes('analisis')) {
+                  resp = `📈 Puedo generar los siguientes análisis:\n• Rentabilidad por producto\n• Flujo de caja proyectado\n• Análisis de cohortes de clientes\n• Varianza presupuestal\n\n¿Cuál necesitas? También puedes ir a **Reportes** para exportar en PDF/Excel.`;
+                } else if (q.includes('calidad') || q.includes('produccion') || q.includes('erp')) {
+                  resp = `🏭 En el módulo ERP tienes **${erpWorkOrders.length} órdenes de producción** y **${erpQualityChecks.filter(q=>q.result==='fail').length} controles fallidos** que requieren atención. El índice de calidad actual es del **${erpQualityChecks.length>0?Math.round((erpQualityChecks.filter(q=>q.result==='pass').length/erpQualityChecks.length)*100):100}%**.`;
+                } else {
+                  const genResponses = [
+                    `💡 Basándome en los datos de tu empresa, veo que tienes oportunidades en optimización de inventario y seguimiento de leads. ¿Quieres que analice algún módulo específico?`,
+                    `🔍 He analizado tu información empresarial. Tu operación tiene ${products.length} productos, ${empleados} empleados y ${portalClients.length} clientes activos. ¿Sobre qué área quieres profundizar?`,
+                    `📌 Recomendación del día: Revisa los ${projTasks.filter(t=>t.status==='todo').length} tareas pendientes en Proyectos y los ${portalTickets.filter(t=>t.status==='open').length} tickets abiertos en el Portal Cliente. ¿Necesitas ayuda con algo específico?`
+                  ];
+                  resp = genResponses[Math.floor(Math.random()*genResponses.length)];
+                }
+                setAiMessages(prev=>[...prev,{role:'assistant',text:resp}]);
+                setAiLoading(false);
+                if(tenant) dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Consulta IA', aiInput.substring(0,50));
+              }} className="flex gap-3 items-center">
+                <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5">
+                  <input type="text" placeholder="Pregunta sobre tus datos, reportes, recomendaciones..." value={aiInput} onChange={e=>setAiInput(e.target.value)}
+                    className="flex-1 bg-transparent text-xs outline-none text-slate-800 placeholder:text-slate-400"/>
+                </div>
+                <button type="submit" disabled={aiLoading}
+                  className="w-10 h-10 rounded-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white flex items-center justify-center shadow-md transition-all flex-shrink-0">
+                  <Send className="w-4 h-4"/>
+                </button>
+              </form>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {['¿Cuál es mi flujo de caja?','Analiza mis ventas','¿Qué tareas están pendientes?','Resumen de empleados'].map(q=>(
+                  <button key={q} onClick={()=>setAiInput(q)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-[9px] text-slate-600 font-bold rounded-lg transition-all">{q}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== P11: MULTI-SUCURSAL ==================== */}
+        {activeTab === 'multi_branch' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Sucursales</span><span className="text-2xl font-black text-cyan-600 block mt-1">{multiBranches.length}</span></div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Ventas Consolidadas</span><span className="text-2xl font-black text-green-600 block mt-1 font-mono">${multiBranches.reduce((s,b)=>s+b.sales,0).toLocaleString()}</span></div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Stock Total</span><span className="text-2xl font-black text-slate-800 block mt-1">{multiBranches.reduce((s,b)=>s+b.stock,0).toLocaleString()}</span></div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Sucursal Líder</span><span className="text-sm font-black text-cyan-700 block mt-1 truncate">{multiBranches.sort((a,b)=>b.sales-a.sales)[0]?.name||'—'}</span></div>
+            </div>
+
+            <div className="flex gap-2 border-b border-slate-200 pb-3">
+              {[['list','🏢 Sucursales'],['consolidation','📊 Consolidación'],['stock','📦 Stock por Sucursal']].map(([k,l])=>(
+                <button key={k} onClick={()=>setBranchSubTab(k as any)} className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${branchSubTab===k?'bg-slate-900 text-white shadow-md':'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}>{l}</button>
+              ))}
+            </div>
+
+            {branchSubTab === 'list' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Sucursal</span>
+                  <form onSubmit={e=>{e.preventDefault();if(!tenant||!newBranchName)return;
+                    const br={id:'br-'+Date.now(),tenantId:tenant.id,name:newBranchName,city:newBranchCity,manager:newBranchManager,sales:0,stock:0,status:'active'};
+                    const list=[...multiBranches,br];dbAdapter.saveBranches(tenant.id,list);setMultiBranches(list);
+                    setNewBranchName('');setNewBranchCity('');setNewBranchManager('');
+                  }} className="flex flex-col gap-3 text-xs font-semibold">
+                    <input required type="text" placeholder="Nombre de la sucursal" value={newBranchName} onChange={e=>setNewBranchName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <input type="text" placeholder="Ciudad" value={newBranchCity} onChange={e=>setNewBranchCity(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <input type="text" placeholder="Gerente responsable" value={newBranchManager} onChange={e=>setNewBranchManager(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <button type="submit" className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold shadow">+ Agregar Sucursal</button>
+                  </form>
+                </div>
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Red de Sucursales</span>
+                  <div className="space-y-3 text-xs">
+                    {multiBranches.map(br => (
+                      <div key={br.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-700 font-black text-sm">🏢</div>
+                          <div>
+                            <h4 className="font-bold text-slate-900">{br.name}</h4>
+                            <p className="text-[10px] text-gray-400">{br.city} • Gerente: {br.manager}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-black text-green-700 font-mono block">${br.sales.toLocaleString()}</span>
+                          <span className="text-[9px] text-gray-400">{br.stock} unidades en stock</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {branchSubTab === 'consolidation' && (
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">📊 Estado Financiero Consolidado</span>
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead><tr className="border-b border-slate-100 font-bold text-gray-400">
+                    <th className="pb-2">Sucursal</th><th className="pb-2">Ciudad</th><th className="pb-2">Gerente</th><th className="pb-2 text-right">Ventas</th><th className="pb-2 text-center">% del Total</th><th className="pb-2 text-center">Estado</th>
+                  </tr></thead>
+                  <tbody>
+                    {multiBranches.map(br=>{
+                      const total=multiBranches.reduce((s,b)=>s+b.sales,0);
+                      const pct=total>0?Math.round((br.sales/total)*100):0;
+                      return(<tr key={br.id} className="border-b border-slate-50">
+                        <td className="py-2.5 font-bold text-slate-900">{br.name}</td>
+                        <td className="py-2.5 text-slate-600">{br.city}</td>
+                        <td className="py-2.5 text-slate-600">{br.manager}</td>
+                        <td className="py-2.5 text-right font-black font-mono text-green-700">${br.sales.toLocaleString()}</td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-slate-100 rounded-full h-1.5"><div className="bg-cyan-500 h-1.5 rounded-full" style={{width:`${pct}%`}}/></div>
+                            <span className="text-[9px] font-bold w-6 text-right">{pct}%</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 text-center"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-black">Activa</span></td>
+                      </tr>);
+                    })}
+                  </tbody>
+                  <tfoot><tr className="border-t-2 border-slate-200">
+                    <td colSpan={3} className="py-3 font-black text-slate-800 text-right pr-4">TOTAL CONSOLIDADO:</td>
+                    <td className="py-3 font-black font-mono text-green-800 text-right">${multiBranches.reduce((s,b)=>s+b.sales,0).toLocaleString()}</td>
+                    <td colSpan={2}/>
+                  </tr></tfoot>
+                </table>
+              </div>
+            )}
+
+            {branchSubTab === 'stock' && (
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">📦 Inventario por Sucursal</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {multiBranches.map(br=>(
+                    <div key={br.id} className="p-5 border border-slate-100 rounded-2xl bg-slate-50/30">
+                      <h4 className="font-black text-slate-800 mb-1">{br.name}</h4>
+                      <p className="text-[10px] text-gray-400 mb-3">{br.city}</p>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between"><span className="text-gray-500">Total unidades</span><span className="font-black text-slate-900">{br.stock}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Valor estimado</span><span className="font-mono font-black text-green-700">${(br.stock * 45).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">SKUs activos</span><span className="font-bold text-slate-700">{Math.floor(br.stock/12)}</span></div>
+                      </div>
+                      <button onClick={()=>alert(`Solicitando transferencia de stock desde ${br.name}...`)} className="mt-3 w-full py-1.5 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 text-[10px] font-bold rounded-lg">Transferir Stock</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== P12: PORTAL CLIENTE ==================== */}
+        {activeTab === 'client_portal' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Clientes</span><span className="text-2xl font-black text-pink-500 block mt-1">{portalClients.length}</span></div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Tickets Abiertos</span><span className="text-2xl font-black text-red-500 block mt-1">{portalTickets.filter(t=>t.status==='open').length}</span></div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">En Progreso</span><span className="text-2xl font-black text-orange-500 block mt-1">{portalTickets.filter(t=>t.status==='in_progress').length}</span></div>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm"><span className="text-[10px] font-black uppercase text-slate-400">Resueltos</span><span className="text-2xl font-black text-green-600 block mt-1">{portalTickets.filter(t=>t.status==='resolved').length}</span></div>
+            </div>
+
+            <div className="flex gap-2 border-b border-slate-200 pb-3">
+              {[['clients','👥 Clientes'],['tickets','🎫 Tickets Soporte'],['invoices','🧾 Facturas del Cliente'],['quotes','📄 Cotizaciones']].map(([k,l])=>(
+                <button key={k} onClick={()=>setPortalSubTab(k as any)} className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${portalSubTab===k?'bg-slate-900 text-white shadow-md':'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}>{l}</button>
+              ))}
+            </div>
+
+            {portalSubTab === 'clients' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Cliente</span>
+                  <form onSubmit={e=>{e.preventDefault();if(!tenant||!newClientName||!newClientEmail)return;
+                    const c={id:'pc-'+Date.now(),tenantId:tenant.id,name:newClientName,email:newClientEmail,company:newClientCompany,plan:'Starter',since:new Date().toISOString().split('T')[0],status:'active'};
+                    const list=[...portalClients,c];dbAdapter.savePortalClients(tenant.id,list);setPortalClients(list);
+                    setNewClientName('');setNewClientEmail('');setNewClientCompany('');
+                  }} className="flex flex-col gap-3 text-xs font-semibold">
+                    <input required type="text" placeholder="Nombre del cliente" value={newClientName} onChange={e=>setNewClientName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <input required type="email" placeholder="Email" value={newClientEmail} onChange={e=>setNewClientEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <input type="text" placeholder="Empresa" value={newClientCompany} onChange={e=>setNewClientCompany(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <button type="submit" className="w-full py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-xl font-bold shadow">+ Agregar Cliente</button>
+                  </form>
+                </div>
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Clientes Registrados</span>
+                  <div className="space-y-3 text-xs">
+                    {portalClients.map(c=>(
+                      <div key={c.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-black">{c.name.charAt(0)}</div>
+                          <div><h4 className="font-bold text-slate-900">{c.name}</h4><p className="text-[10px] text-gray-400">{c.email} • {c.company}</p></div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-black ${c.plan==='Enterprise'?'bg-purple-100 text-purple-700':c.plan==='Pro'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-600'}`}>{c.plan}</span>
+                          <span className={`block mt-1 px-2 py-0.5 rounded text-[9px] font-black ${c.status==='active'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'}`}>{c.status==='active'?'Activo':'Trial'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {portalSubTab === 'tickets' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Nuevo Ticket</span>
+                  <form onSubmit={e=>{e.preventDefault();if(!tenant||!newTicketTitle)return;
+                    const t={id:'pt-'+Date.now(),tenantId:tenant.id,clientId:newTicketClient,title:newTicketTitle,desc:newTicketDesc,status:'open',priority:'medium',date:new Date().toISOString().split('T')[0]};
+                    const list=[...portalTickets,t];dbAdapter.savePortalTickets(tenant.id,list);setPortalTickets(list);
+                    setNewTicketTitle('');setNewTicketDesc('');setNewTicketClient('');
+                  }} className="flex flex-col gap-3 text-xs font-semibold">
+                    <select value={newTicketClient} onChange={e=>setNewTicketClient(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                      <option value="">Seleccionar cliente</option>
+                      {portalClients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <input required type="text" placeholder="Título del ticket" value={newTicketTitle} onChange={e=>setNewTicketTitle(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"/>
+                    <textarea placeholder="Descripción del problema..." value={newTicketDesc} onChange={e=>setNewTicketDesc(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl h-20 outline-none"/>
+                    <button type="submit" className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow">+ Crear Ticket</button>
+                  </form>
+                </div>
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Cola de Tickets</span>
+                  <div className="space-y-3 text-xs">
+                    {portalTickets.map(t=>{
+                      const client=portalClients.find(c=>c.id===t.clientId);
+                      return(
+                        <div key={t.id} className={`p-4 border rounded-xl ${t.status==='open'?'border-red-200 bg-red-50/20':t.status==='in_progress'?'border-yellow-200 bg-yellow-50/20':'border-green-200 bg-green-50/20'}`}>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-slate-900">{t.title}</h4>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{client?.name||'Cliente desconocido'} • {t.date}</p>
+                              <p className="text-[10px] text-slate-600 mt-1 italic">"{t.desc}"</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-3">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black ${t.priority==='high'?'bg-red-200 text-red-800':t.priority==='medium'?'bg-yellow-200 text-yellow-800':'bg-slate-200 text-slate-600'}`}>
+                                {t.priority==='high'?'Alta':t.priority==='medium'?'Media':'Baja'}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black ${t.status==='open'?'bg-red-100 text-red-700':t.status==='in_progress'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}`}>
+                                {t.status==='open'?'Abierto':t.status==='in_progress'?'En Progreso':'Resuelto'}
+                              </span>
+                            </div>
+                          </div>
+                          {t.status!=='resolved' && (
+                            <button onClick={()=>{const upd=portalTickets.map(x=>x.id===t.id?{...x,status:x.status==='open'?'in_progress':'resolved'}:x);dbAdapter.savePortalTickets(tenant?.id||'',upd);setPortalTickets(upd);}} className="mt-2 text-[9px] font-bold text-blue-600 hover:underline">
+                              {t.status==='open'?'▶ Tomar ticket':'✓ Resolver'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {portalSubTab === 'invoices' && (
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">🧾 Facturas por Cliente</span>
+                <p className="text-xs text-slate-500 mb-4">Las facturas electrónicas emitidas se enlazan aquí para que cada cliente acceda a su historial de pagos y descargue sus documentos tributarios.</p>
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead><tr className="border-b border-slate-100 font-bold text-gray-400">
+                    <th className="pb-2">Cliente</th><th className="pb-2">Empresa</th><th className="pb-2">Plan</th><th className="pb-2 text-right">Monto Mensual</th><th className="pb-2 text-center">Estado</th><th className="pb-2 text-center">Portal</th>
+                  </tr></thead>
+                  <tbody>
+                    {portalClients.map(c=>(
+                      <tr key={c.id} className="border-b border-slate-50">
+                        <td className="py-2.5 font-bold text-slate-900">{c.name}</td>
+                        <td className="py-2.5 text-slate-600">{c.company}</td>
+                        <td className="py-2.5"><span className={`px-2 py-0.5 rounded text-[9px] font-black ${c.plan==='Enterprise'?'bg-purple-100 text-purple-700':c.plan==='Pro'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-600'}`}>{c.plan}</span></td>
+                        <td className="py-2.5 text-right font-mono font-black text-slate-900">${c.plan==='Enterprise'?'99.00':c.plan==='Pro'?'49.00':'19.00'}</td>
+                        <td className="py-2.5 text-center"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-black">Pagado</span></td>
+                        <td className="py-2.5 text-center"><button onClick={()=>alert(`Enviando acceso al portal de autogestion a ${c.email}...`)} className="text-[9px] font-bold text-pink-500 hover:underline">📧 Enviar acceso</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {portalSubTab === 'quotes' && (
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                <span className="font-extrabold text-sm text-slate-800 block mb-4">📄 Cotizaciones para Clientes</span>
+                <p className="text-xs text-slate-500 mb-4">Las cotizaciones generadas en el CRM PRO aparecen aquí vinculadas al cliente, quien puede aprobarlas o rechazarlas desde su portal de autogestión.</p>
+                <div className="space-y-3">
+                  {quotes.length === 0 ? (
+                    <p className="text-slate-400 text-xs text-center py-8">No hay cotizaciones. Ve a CRM PRO → Cotizaciones para crear una.</p>
+                  ) : quotes.map((q:any)=>(
+                    <div key={q.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center text-xs">
+                      <div>
+                        <h4 className="font-bold text-slate-900">{q.productName || 'Cotización'}</h4>
+                        <p className="text-[10px] text-gray-400">Válida hasta: {q.validUntil} • Cantidad: {q.qty}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-black font-mono text-green-700">${((q.price||0)*(q.qty||1)).toFixed(2)}</span>
+                        <button onClick={()=>alert('Enviando cotización al portal del cliente para aprobación...')} className="px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-bold text-[9px]">Enviar al cliente</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
