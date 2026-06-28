@@ -13,6 +13,23 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+// ==================== DEFAULT BLOCK TEMPLATES FOR SEEDING ====================
+const mkId = (type: string) => `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const DEFAULT_BLOCK_TEMPLATES: Record<string, any> = {
+  header: { id: mkId('header'), type: 'header', styles: { bgColor: '#ffffff', padding: 'py-10', borderRadius: 'none' }, content: { logo: 'Mi Empresa', links: [] }, dynamicSource: null, seo: {}, responsive: {} },
+  footer: { id: mkId('footer'), type: 'footer', styles: { bgColor: '#111827', padding: 'py-10', borderRadius: 'none' }, content: { logo: 'Mi Empresa', links: [], copyText: '© 2024 Mi Empresa. Todos los derechos reservados.' }, dynamicSource: null, seo: {}, responsive: {} },
+  hero: { id: mkId('hero'), type: 'hero', styles: { bgColor: '#0f172a', textAlign: 'center', padding: 'py-32', borderRadius: 'none' }, content: { title: 'Bienvenidos a Nuestra Plataforma', subtitle: 'La solución todo-en-uno para tu negocio', bodyText: '', buttonText: 'Comenzar Ahora', buttonLink: '/contacto', imageUrl: '' }, dynamicSource: null, seo: {}, responsive: {} },
+  rich_text: { id: mkId('rich_text'), type: 'rich_text', styles: { bgColor: 'transparent', textAlign: 'left', padding: 'py-16' }, content: { title: 'Sobre Nosotros', bodyText: 'Somos una empresa dedicada a la excelencia y la innovación tecnológica.' }, dynamicSource: null, seo: {}, responsive: {} },
+  columns_layout: { id: mkId('columns_layout'), type: 'columns_layout', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { col1_title: 'Servicio 1', col1_text: 'Descripción del primer servicio.', col2_title: 'Servicio 2', col2_text: 'Descripción del segundo servicio.', col3_title: 'Servicio 3', col3_text: 'Descripción del tercer servicio.' }, dynamicSource: null, seo: {}, responsive: {} },
+  contact_form: { id: mkId('contact_form'), type: 'contact_form', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Contáctanos', subtitle: 'Estamos aquí para ayudarte.' }, dynamicSource: null, seo: {}, responsive: {} },
+  accordion_faq: { id: mkId('accordion_faq'), type: 'accordion_faq', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Preguntas Frecuentes', faqs: [{ q: '¿Cómo funciona?', a: 'Es muy sencillo, solo regístrate y comienza.' }, { q: '¿Cuánto cuesta?', a: 'Tenemos planes para todos los presupuestos.' }] }, dynamicSource: null, seo: {}, responsive: {} },
+  gallery: { id: mkId('gallery'), type: 'gallery', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Nuestra Galería', images: [] }, dynamicSource: null, seo: {}, responsive: {} },
+  cta_banner: { id: mkId('cta_banner'), type: 'cta_banner', styles: { bgColor: '#0f172a', textAlign: 'center', padding: 'py-20' }, content: { title: '¡Empieza hoy mismo!', subtitle: 'Únete a miles de usuarios satisfechos.', buttonText: 'Registrarse Gratis', buttonLink: '/registro' }, dynamicSource: null, seo: {}, responsive: {} },
+  pricing_table: { id: mkId('pricing_table'), type: 'pricing_table', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Nuestros Planes' }, dynamicSource: null, seo: {}, responsive: {} },
+  dynamic_product_grid: { id: mkId('dynamic_product_grid'), type: 'dynamic_product_grid', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Productos Destacados' }, dynamicSource: { type: 'products', limit: 6 }, seo: {}, responsive: {} }
+};
+const INITIAL_PAGE_STRUCTURE = { blocks: [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.hero, DEFAULT_BLOCK_TEMPLATES.columns_layout, DEFAULT_BLOCK_TEMPLATES.cta_banner, DEFAULT_BLOCK_TEMPLATES.footer] };
+
 export default function BuilderPage() {
   const { 
     structure,
@@ -90,8 +107,270 @@ export default function BuilderPage() {
   const [onboardingStep, setOnboardingStep] = useState<number>(0);
   const [onboardingFocus, setOnboardingFocus] = useState<'all' | 'ecommerce' | 'education'>('all');
 
+  // Pages sub-tab state (must be at component level to avoid hooks violations)
+  const [pagesSubTab, setPagesSubTab] = useState<'list' | 'create' | 'settings' | 'trash'>('list');
+
+  // ==================== LEVEL 1: UNDO / REDO ENGINE ====================
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [isUndoingOrRedoing, setIsUndoingOrRedoing] = useState(false);
+
+  useEffect(() => {
+    if (isUndoingOrRedoing) {
+      setIsUndoingOrRedoing(false);
+      return;
+    }
+    const stateStr = JSON.stringify({
+      blocks: structure.blocks,
+      title,
+      slug,
+      isPublished
+    });
+    const lastState = undoStack[undoStack.length - 1];
+    if (stateStr !== lastState) {
+      setUndoStack(prev => [...prev, stateStr]);
+      setRedoStack([]); // clear redo stack on new action
+    }
+  }, [structure.blocks, title, slug, isPublished]);
+
+  const handleUndo = () => {
+    if (undoStack.length <= 1) return;
+    setIsUndoingOrRedoing(true);
+    const current = undoStack[undoStack.length - 1];
+    const previous = undoStack[undoStack.length - 2];
+    
+    setUndoStack(prev => prev.slice(0, -1));
+    setRedoStack(prev => [...prev, current]);
+
+    const parsed = JSON.parse(previous);
+    initPage(pageId || 'inicio', parsed.slug, parsed.title, parsed.isPublished, {
+      blocks: parsed.blocks
+    });
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    setIsUndoingOrRedoing(true);
+    const next = redoStack[redoStack.length - 1];
+
+    setRedoStack(prev => prev.slice(0, -1));
+    setUndoStack(prev => [...prev, next]);
+
+    const parsed = JSON.parse(next);
+    initPage(pageId || 'inicio', parsed.slug, parsed.title, parsed.isPublished, {
+      blocks: parsed.blocks
+    });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undoStack, redoStack]);
+
+  // ==================== LEVEL 1: AUTOSAVE & DRAFT SYSTEM ====================
+  const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [draftHistory, setDraftHistory] = useState<{ time: string; msg: string }[]>([]);
+  const [showRecoveryBanner, setShowRecoveryBanner] = useState(false);
+  const [draftToRecover, setDraftToRecover] = useState<any>(null);
+
+  useEffect(() => {
+    if (undoStack.length <= 1) return;
+    setSavingStatus('saving');
+    const timer = setTimeout(() => {
+      if (!activeTenant || !pageId) return;
+      
+      const structureJsonStr = JSON.stringify(structure.blocks);
+      
+      // Auto-save draft directly to database Page records
+      dbAdapter.saveTenantPage(activeTenant.id, slug, {
+        title,
+        isPublished,
+        structureJson: structureJsonStr
+      });
+
+      // Save to localStorage draft backup
+      localStorage.setItem(`local_draft_${activeTenant.id}_${slug}`, JSON.stringify({
+        structureJson: structureJsonStr,
+        title,
+        slug,
+        isPublished,
+        updatedAt: Date.now()
+      }));
+
+      const timeStr = new Date().toLocaleTimeString();
+      setDraftHistory(prev => [
+        { time: timeStr, msg: `Borrador guardado (${structure.blocks.length} bloques)` },
+        ...prev.slice(0, 4)
+      ]);
+
+      setSavingStatus('saved');
+      setTimeout(() => setSavingStatus('idle'), 1500);
+    }, 2000); // 2 second auto-save debounce
+
+    return () => clearTimeout(timer);
+  }, [structure.blocks, title, slug, isPublished]);
+
+  // ==================== LEVEL 1: PAGES CRUD & MANAGEMENT ====================
+  const [tenantPages, setTenantPages] = useState<Page[]>([]);
+  const [trashPages, setTrashPages] = useState<Page[]>([]);
+  const [newPageTitle, setNewPageTitle] = useState('');
+  const [newPageSlug, setNewPageSlug] = useState('');
+  const [newPageParentId, setNewPageParentId] = useState('');
+  const [newPageTemplate, setNewPageTemplate] = useState<'blank' | 'landing' | 'servicios' | 'nosotros' | 'faq' | 'contacto'>('blank');
+  const [selectedPageForSettings, setSelectedPageForSettings] = useState<Page | null>(null);
+
+  const syncPagesList = (tenantId: string) => {
+    const list = dbAdapter.getPages().filter(p => p.tenantId === tenantId);
+    setTenantPages(list.filter(p => !p.isDeleted));
+    setTrashPages(list.filter(p => p.isDeleted));
+  };
+
+  const handleSelectPage = (p: Page) => {
+    initPage(p.id, p.slug, p.title, p.isPublished, {
+      blocks: JSON.parse(p.structureJson || '[]')
+    });
+    setSelectedPageForSettings(p);
+    setUndoStack([]);
+    setRedoStack([]);
+  };
+
+  const handleCreatePage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !newPageTitle || !newPageSlug) return;
+    const formattedSlug = newPageSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
+    
+    const templateBlocks = newPageTemplate === 'landing'
+      ? [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.hero, DEFAULT_BLOCK_TEMPLATES.cta_banner, DEFAULT_BLOCK_TEMPLATES.footer]
+      : newPageTemplate === 'servicios'
+      ? [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.hero, DEFAULT_BLOCK_TEMPLATES.columns_layout, DEFAULT_BLOCK_TEMPLATES.footer]
+      : newPageTemplate === 'nosotros'
+      ? [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.rich_text, DEFAULT_BLOCK_TEMPLATES.gallery, DEFAULT_BLOCK_TEMPLATES.footer]
+      : newPageTemplate === 'faq'
+      ? [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.accordion_faq, DEFAULT_BLOCK_TEMPLATES.footer]
+      : newPageTemplate === 'contacto'
+      ? [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.contact_form, DEFAULT_BLOCK_TEMPLATES.footer]
+      : [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.footer]; // blank
+
+    const newPage = dbAdapter.saveTenantPage(activeTenant.id, formattedSlug, {
+      title: newPageTitle,
+      status: 'draft',
+      isPublished: false,
+      parentPageId: newPageParentId,
+      structureJson: JSON.stringify(templateBlocks)
+    });
+
+    syncPagesList(activeTenant.id);
+    setNewPageTitle('');
+    setNewPageSlug('');
+    setNewPageParentId('');
+    setNewPageTemplate('blank');
+    alert(`Página "${newPage.title}" creada como borrador.`);
+  };
+
+  const handleDuplicatePage = (page: Page) => {
+    if (!activeTenant) return;
+    const dupSlug = `${page.slug}-copy-${Date.now().toString().slice(-4)}`;
+    dbAdapter.saveTenantPage(activeTenant.id, dupSlug, {
+      title: `${page.title} (Copia)`,
+      status: 'draft',
+      isPublished: false,
+      parentPageId: page.parentPageId || '',
+      structureJson: page.structureJson,
+      seoTitle: page.seoTitle || '',
+      seoDesc: page.seoDesc || '',
+      permissions: page.permissions || []
+    });
+    syncPagesList(activeTenant.id);
+    alert(`Página "${page.title}" duplicada.`);
+  };
+
+  const handleSoftDeletePage = (page: Page) => {
+    if (!activeTenant) return;
+    if (page.slug === 'inicio') {
+      alert('No puedes eliminar la página de inicio.');
+      return;
+    }
+    dbAdapter.saveTenantPage(activeTenant.id, page.slug, {
+      isDeleted: true
+    });
+    syncPagesList(activeTenant.id);
+    if (pageId === page.id) {
+      const home = dbAdapter.getTenantPage(activeTenant.id, 'inicio');
+      if (home) handleSelectPage(home);
+    }
+    alert(`"${page.title}" movida a la Papelera.`);
+  };
+
+  const handleRestorePage = (page: Page) => {
+    if (!activeTenant) return;
+    dbAdapter.saveTenantPage(activeTenant.id, page.slug, {
+      isDeleted: false
+    });
+    syncPagesList(activeTenant.id);
+    alert(`Página "${page.title}" restaurada.`);
+  };
+
+  const handlePermanentDeletePage = (page: Page) => {
+    if (!activeTenant) return;
+    if (confirm(`¿Eliminar definitivamente la página "${page.title}"? Esta acción es irreversible.`)) {
+      const all = dbAdapter.getPages().filter(p => p.id !== page.id);
+      dbAdapter.savePages(all);
+      syncPagesList(activeTenant.id);
+      alert('Página eliminada permanentemente.');
+    }
+  };
+
+  const handleUpdatePageSettings = (pId: string, fields: Partial<Page>) => {
+    if (!activeTenant) return;
+    const list = dbAdapter.getPages();
+    const index = list.findIndex(p => p.id === pId);
+    if (index >= 0) {
+      const updated = { ...list[index], ...fields };
+      list[index] = updated;
+      dbAdapter.savePages(list);
+      syncPagesList(activeTenant.id);
+      if (pageId === pId) {
+        if (fields.title) {
+          initPage(pId, updated.slug, fields.title, updated.isPublished, structure);
+        }
+      }
+      setSelectedPageForSettings(updated);
+    }
+  };
+
   const reloadGitCommits = (tenantId: string) => {
     setGitCommits(dbAdapter.getGitCommits(tenantId));
+  };
+
+  // Seed default pages if not existing on mount
+  const seedDefaultPages = (tenantId: string) => {
+    const list = dbAdapter.getPages();
+    const tenantPages = list.filter(p => p.tenantId === tenantId);
+    if (tenantPages.length === 0) {
+      const seed: Page[] = [
+        { id: 'p-inicio', tenantId, slug: 'inicio', title: 'Inicio', isPublished: true, status: 'published', structureJson: JSON.stringify(INITIAL_PAGE_STRUCTURE.blocks) },
+        { id: 'p-servicios', tenantId, slug: 'servicios', title: 'Servicios', isPublished: true, status: 'published', parentPageId: 'p-inicio', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.hero, DEFAULT_BLOCK_TEMPLATES.columns_layout, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-nosotros', tenantId, slug: 'nosotros', title: 'Nosotros', isPublished: true, status: 'published', parentPageId: 'p-inicio', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.rich_text, DEFAULT_BLOCK_TEMPLATES.gallery, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-contacto', tenantId, slug: 'contacto', title: 'Contacto', isPublished: true, status: 'published', parentPageId: 'p-inicio', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.contact_form, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-faq', tenantId, slug: 'faq', title: 'Preguntas Frecuentes', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.accordion_faq, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-blog', tenantId, slug: 'blog', title: 'Blog', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.rich_text, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-producto', tenantId, slug: 'producto', title: 'Producto', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.dynamic_product_grid, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-landing', tenantId, slug: 'landing', title: 'Landing', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.hero, DEFAULT_BLOCK_TEMPLATES.cta_banner, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-checkout', tenantId, slug: 'checkout', title: 'Checkout', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.pricing_table, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-login', tenantId, slug: 'login', title: 'Login', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.contact_form, DEFAULT_BLOCK_TEMPLATES.footer]) },
+        { id: 'p-registro', tenantId, slug: 'registro', title: 'Registro', isPublished: false, status: 'draft', structureJson: JSON.stringify([DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.contact_form, DEFAULT_BLOCK_TEMPLATES.footer]) }
+      ];
+      dbAdapter.savePages([...list, ...seed]);
+    }
   };
 
   useEffect(() => {
@@ -99,15 +378,26 @@ export default function BuilderPage() {
     setActiveTenant(tenant);
     setTemplates(dbAdapter.getTemplates());
     reloadGitCommits(tenant.id);
+    seedDefaultPages(tenant.id);
+    syncPagesList(tenant.id);
 
-    // Load active page from database
+    // Check localStorage recovery draft
+    const localDraftStr = localStorage.getItem(`local_draft_${tenant.id}_inicio`);
     const page = dbAdapter.getTenantPage(tenant.id, 'inicio');
+    if (localDraftStr && page) {
+      const localDraft = JSON.parse(localDraftStr);
+      if (localDraft.structureJson !== page.structureJson) {
+        setDraftToRecover(localDraft);
+        setShowRecoveryBanner(true);
+      }
+    }
+
     if (page && page.structureJson !== '[]') {
       initPage(page.id, page.slug, page.title, page.isPublished, {
         blocks: JSON.parse(page.structureJson)
       });
+      setSelectedPageForSettings(page);
     } else {
-      // Force loading onboarding wizard if no page exists
       setOnboardingStep(1);
     }
   }, []);
@@ -464,18 +754,52 @@ export default function BuilderPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
+          {/* Undo / Redo buttons */}
+          <div className="flex items-center bg-gray-100 rounded-full border border-gray-200 overflow-hidden">
+            <button
+              onClick={handleUndo}
+              disabled={undoStack.length <= 1}
+              title="Deshacer (Ctrl+Z)"
+              className="px-3 py-2 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:opacity-30 transition-colors"
+            >
+              ↩ Deshacer
+            </button>
+            <div className="w-px h-5 bg-gray-300" />
+            <button
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              title="Rehacer (Ctrl+Y)"
+              className="px-3 py-2 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:opacity-30 transition-colors"
+            >
+              Rehacer ↪
+            </button>
+          </div>
+
+          {/* Autosave Status Indicator */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 text-[10px] font-black">
+            {savingStatus === 'saving' && (
+              <><span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" /><span className="text-yellow-600">Guardando...</span></>
+            )}
+            {savingStatus === 'saved' && (
+              <><span className="w-1.5 h-1.5 bg-green-500 rounded-full" /><span className="text-green-600">Draft Guardado</span></>
+            )}
+            {savingStatus === 'idle' && (
+              <><span className="w-1.5 h-1.5 bg-gray-300 rounded-full" /><span className="text-gray-400">Auto-guardado</span></>
+            )}
+          </div>
+
           <button 
             onClick={() => setShowTemplatesModal(true)}
             className="px-4 py-2 border border-gray-200 rounded-full font-bold hover:bg-slate-50 transition-colors text-xs"
           >
-            📚 Biblioteca Plantillas
+            📚 Plantillas
           </button>
           <button 
             onClick={() => setShowExtractModal(true)}
             className="px-4 py-2 border border-celeste-claro text-primary-celeste bg-celeste-claro/20 rounded-full font-bold hover:bg-celeste-claro/40 transition-colors text-xs"
             title="Extraer esta estructura de página como tema"
           >
-            📥 Extraer Plantilla
+            📥 Extraer
           </button>
           <Link href="/inicio" target="_blank" className="px-4 py-2 border border-gray-200 rounded-full font-bold hover:bg-gray-50 transition-colors flex items-center gap-1.5 text-xs">
             <Eye className="w-4 h-4" /> Previsualizar
@@ -485,10 +809,10 @@ export default function BuilderPage() {
             className="px-6 py-2.5 bg-slate-900 text-white rounded-full font-bold shadow-lg hover:scale-105 transition-all flex items-center gap-2 relative text-xs"
           >
             <Save className="w-4 h-4 text-primary-celeste" /> 
-            {isSaved ? '¡Guardado!' : 'Guardar Diseño'}
+            {isSaved ? '¡Guardado!' : 'Guardar'}
             {isSaved && (
               <span className="absolute -bottom-10 right-0 bg-green-600 text-white text-[10px] py-1.5 px-3 rounded-lg shadow-xl animate-fade-in font-bold z-50">
-                Lienzo guardado en dbAdapter (Simulado)
+                Guardado en base de datos
               </span>
             )}
           </button>
@@ -701,30 +1025,201 @@ export default function BuilderPage() {
 
             {/* C. PAGE DIRECTORY */}
             {activeTab === 'pages' && (
-              <div className="flex flex-col gap-4">
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Páginas de este sitio</span>
-                <div className="flex flex-col gap-2">
-                  <div className="px-4 py-2.5 bg-celeste-claro/10 border border-primary-celeste/20 text-primary-celeste rounded-xl text-xs font-bold flex justify-between items-center">
-                    <span>/inicio (Página Principal)</span>
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                <div className="flex flex-col gap-4 text-xs font-semibold">
+                  <div className="flex border-b border-gray-150 pb-2 mb-2 gap-1.5">
+                    {[['list', '📋 Lista'], ['create', '➕ Nueva'], ['settings', '⚙ Config'], ['trash', '🗑 Papelera']].map(([k, l]) => (
+                      <button 
+                        key={k} 
+                        type="button" 
+                        onClick={() => setPagesSubTab(k as any)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] uppercase font-black transition-colors ${pagesSubTab === k ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                      >
+                        {l}
+                      </button>
+                    ))}
                   </div>
-                  <div className="px-4 py-2.5 bg-gray-50 text-gray-400 rounded-xl text-xs flex justify-between items-center">
-                    <span>/cursos (Aula LMS)</span>
-                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
-                  </div>
-                  <div className="px-4 py-2.5 bg-gray-50 text-gray-400 rounded-xl text-xs flex justify-between items-center">
-                    <span>/contacto (Contacto)</span>
-                    <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
-                  </div>
-                </div>
 
-                <button 
-                  onClick={() => setShowTemplatesModal(true)}
-                  className="w-full mt-6 py-2.5 bg-slate-900 hover:bg-primary-celeste hover:text-slate-950 text-white font-extrabold text-xs rounded-xl shadow transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" /> Cambiar Plantilla Base
-                </button>
-              </div>
+                  {/* 1. PAGES LIST TAB (Hierarchical Visual Map) */}
+                  {pagesSubTab === 'list' && (
+                    <div className="flex flex-col gap-3">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Visual Navigation Map</span>
+                      
+                      <div className="flex flex-col gap-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100 max-h-80 overflow-y-auto">
+                        {tenantPages.filter(p => !p.parentPageId).map(rootPage => {
+                          const isSel = pageId === rootPage.id;
+                          const children = tenantPages.filter(p => p.parentPageId === rootPage.id);
+                          return (
+                            <div key={rootPage.id} className="flex flex-col gap-1">
+                              <div className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${isSel ? 'border-primary-celeste bg-celeste-claro/10 font-bold' : 'border-slate-150 bg-white hover:bg-slate-50'}`}>
+                                <button type="button" onClick={() => handleSelectPage(rootPage)} className="flex-grow text-left truncate">
+                                  🌐 /{rootPage.slug} <span className="text-[10px] text-gray-400">({rootPage.title})</span>
+                                  <span className={`ml-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${rootPage.status === 'published' ? 'bg-green-100 text-green-700' : rootPage.status === 'review' ? 'bg-yellow-100 text-yellow-700' : rootPage.status === 'archived' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                    {rootPage.status}
+                                  </span>
+                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  <button type="button" onClick={() => { setSelectedPageForSettings(rootPage); setPagesSubTab('settings'); }} className="p-1 hover:bg-slate-100 rounded text-gray-500 hover:text-black">⚙</button>
+                                  <button type="button" onClick={() => handleDuplicatePage(rootPage)} className="p-1 hover:bg-slate-100 rounded text-gray-500 hover:text-black">📋</button>
+                                  <button type="button" onClick={() => handleSoftDeletePage(rootPage)} className="p-1 hover:bg-red-50 text-red-500 rounded">🗑</button>
+                                </div>
+                              </div>
+
+                              {/* Indented children */}
+                              {children.length > 0 && (
+                                <div className="pl-5 border-l border-slate-200 ml-3 flex flex-col gap-1">
+                                  {children.map(childPage => {
+                                    const isChildSel = pageId === childPage.id;
+                                    return (
+                                      <div key={childPage.id} className={`p-2 rounded-lg border flex items-center justify-between transition-all ${isChildSel ? 'border-primary-celeste bg-celeste-claro/10 font-bold' : 'border-slate-150 bg-white hover:bg-slate-50'}`}>
+                                        <button type="button" onClick={() => handleSelectPage(childPage)} className="flex-grow text-left truncate text-xs">
+                                          ↪ /{childPage.slug} <span className="text-[9px] text-gray-400">({childPage.title})</span>
+                                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${childPage.status === 'published' ? 'bg-green-100 text-green-700' : childPage.status === 'review' ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500'}`}>
+                                            {childPage.status}
+                                          </span>
+                                        </button>
+                                        <div className="flex items-center gap-1">
+                                          <button type="button" onClick={() => { setSelectedPageForSettings(childPage); setPagesSubTab('settings'); }} className="p-1 hover:bg-slate-100 rounded text-gray-500 hover:text-black">⚙</button>
+                                          <button type="button" onClick={() => handleSoftDeletePage(childPage)} className="p-1 hover:bg-red-50 text-red-500 rounded">🗑</button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. CREATE PAGE TAB */}
+                  {pagesSubTab === 'create' && (
+                    <form onSubmit={handleCreatePage} className="p-4 bg-slate-50 border border-slate-150 rounded-2xl flex flex-col gap-3">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Crear Nueva Página</span>
+                      
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-slate-500">Título de la Página</label>
+                        <input required type="text" placeholder="Ej. Servicios" value={newPageTitle} onChange={e=>setNewPageTitle(e.target.value)} className="p-2.5 bg-white border border-slate-200 rounded-xl" />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-slate-500">Slug de la URL</label>
+                        <input required type="text" placeholder="ej-servicios" value={newPageSlug} onChange={e=>setNewPageSlug(e.target.value)} className="p-2.5 bg-white border border-slate-200 rounded-xl font-mono" />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-slate-500">Nidificación (Página Padre)</label>
+                        <select value={newPageParentId} onChange={e=>setNewPageParentId(e.target.value)} className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                          <option value="">Ninguno (Página Raíz)</option>
+                          {tenantPages.map(p=><option key={p.id} value={p.id}>{p.title}</option>)}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-slate-500">Plantilla Inicial</label>
+                        <select value={newPageTemplate} onChange={e=>setNewPageTemplate(e.target.value as any)} className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                          <option value="blank">Vacio (Header + Footer)</option>
+                          <option value="landing">Landing Promocional</option>
+                          <option value="servicios">Página de Servicios</option>
+                          <option value="nosotros">Página Sobre Nosotros</option>
+                          <option value="faq">Preguntas Frecuentes (FAQ)</option>
+                          <option value="contacto">Formulario de Contacto</option>
+                        </select>
+                      </div>
+
+                      <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white font-extrabold rounded-xl shadow mt-2">
+                        + Crear Página
+                      </button>
+                    </form>
+                  )}
+
+                  {/* 3. PAGE SETTINGS INSPECTOR TAB */}
+                  {pagesSubTab === 'settings' && (() => {
+                    const target = selectedPageForSettings || tenantPages.find(p=>p.id===pageId);
+                    if (!target) return <p className="text-slate-400 italic text-[11px]">Selecciona una página primero.</p>;
+                    return (
+                      <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl flex flex-col gap-3">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Propiedades de: {target.title}</span>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] text-slate-500">Título</label>
+                          <input type="text" value={target.title} onChange={e=>handleUpdatePageSettings(target.id, { title: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl" />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] text-slate-500">Estado de Publicación (Workflow)</label>
+                          <select value={target.status || 'draft'} onChange={e=>handleUpdatePageSettings(target.id, { status: e.target.value as any, isPublished: e.target.value === 'published' })} className="p-2.5 bg-white border border-slate-200 rounded-xl font-bold">
+                            <option value="draft">📄 Borrador (Draft)</option>
+                            <option value="review">🔍 En Revisión (Review)</option>
+                            <option value="published">🟢 Publicado (Published)</option>
+                            <option value="archived">📦 Archivado (Archived)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] text-slate-500">Meta Title (SEO)</label>
+                          <input type="text" placeholder="SEO Title" value={target.seoTitle || ''} onChange={e=>handleUpdatePageSettings(target.id, { seoTitle: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl font-mono text-[11px]" />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] text-slate-500">Meta Description (SEO)</label>
+                          <textarea rows={2} placeholder="SEO Description..." value={target.seoDesc || ''} onChange={e=>handleUpdatePageSettings(target.id, { seoDesc: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl" />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] text-slate-500">Restricciones de Visibilidad (RBAC Roles)</label>
+                          <div className="p-2.5 bg-white border border-slate-200 rounded-xl flex flex-col gap-1.5 text-[10px]">
+                            {['super_platform_admin', 'owner', 'administrator', 'accountant', 'supervisor', 'guest'].map(rKey => {
+                              const allowed = target.permissions || [];
+                              const isChecked = allowed.includes(rKey);
+                              return (
+                                <label key={rKey} className="flex items-center gap-2 cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      const nextList = isChecked 
+                                        ? allowed.filter(x => x !== rKey) 
+                                        : [...allowed, rKey];
+                                      handleUpdatePageSettings(target.id, { permissions: nextList });
+                                    }}
+                                  />
+                                  <span>{rKey}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 4. TRASH BIN TAB */}
+                  {pagesSubTab === 'trash' && (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Papelera de Reciclaje</span>
+                      {trashPages.length === 0 ? (
+                        <p className="text-slate-400 italic text-[11px] text-center py-6 bg-slate-50 border border-slate-100 rounded-xl">Papelera vacía.</p>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {trashPages.map(trashPage => (
+                            <div key={trashPage.id} className="p-3 bg-white border border-red-100 rounded-xl flex items-center justify-between">
+                              <div className="truncate max-w-[150px]">
+                                <span className="font-bold text-slate-900 block">{trashPage.title}</span>
+                                <span className="text-[10px] text-gray-400 font-mono">/{trashPage.slug}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onClick={() => handleRestorePage(trashPage)} className="px-2 py-1 bg-green-50 text-green-700 rounded-lg text-[9px] hover:bg-green-100 font-bold" title="Restaurar página">Restaurar</button>
+                                <button type="button" onClick={() => handlePermanentDeletePage(trashPage)} className="px-2 py-1 bg-red-50 text-red-700 rounded-lg text-[9px] hover:bg-red-100 font-bold" title="Eliminar definitivamente">Eliminar</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
             )}
 
             {/* D. CLOUDFLARE WORKERS AI ASSISTANT SIMULATOR */}
@@ -906,6 +1401,21 @@ export default function BuilderPage() {
                     </div>
                   )}
                 </div>
+
+                {/* AutoSave Draft History */}
+                {draftHistory.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Historial de Auto-Guardados</span>
+                    <div className="flex flex-col gap-1.5">
+                      {draftHistory.map((entry, idx) => (
+                        <div key={idx} className="p-2.5 bg-green-50 border border-green-100 rounded-xl flex items-center justify-between text-[10px]">
+                          <span className="text-green-700 font-semibold">{entry.msg}</span>
+                          <span className="text-green-500 font-mono shrink-0 ml-2">{entry.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -923,6 +1433,32 @@ export default function BuilderPage() {
             <div className="absolute top-2 right-4 text-[10px] font-mono text-gray-400 z-10 pointer-events-none uppercase">
               {viewport} view
             </div>
+
+            {/* AutoSave Recovery Banner */}
+            {showRecoveryBanner && draftToRecover && (
+              <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-5 py-3 bg-amber-50 border-b border-amber-300 text-amber-800 text-xs font-bold animate-fade-in">
+                <span>⚠️ Hay un borrador local más reciente. ¿Deseas recuperarlo?</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (!activeTenant) return;
+                      const parsed = JSON.parse(draftToRecover.structureJson || '[]');
+                      initPage(pageId || 'inicio', draftToRecover.slug, draftToRecover.title, draftToRecover.isPublished, { blocks: parsed });
+                      setShowRecoveryBanner(false);
+                    }}
+                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                  >
+                    ✅ Recuperar Draft
+                  </button>
+                  <button
+                    onClick={() => setShowRecoveryBanner(false)}
+                    className="px-3 py-1.5 bg-white border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
+                  >
+                    ✕ Descartar
+                  </button>
+                </div>
+              </div>
+            )}
 
             <PageRenderer isEditor={true} />
           </div>
@@ -1059,14 +1595,78 @@ export default function BuilderPage() {
                     )}
 
                     {selectedBlock.content.imageUrl !== undefined && (
-                      <div>
-                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1">Imagen URL</label>
-                        <input 
-                          type="text" 
-                          value={selectedBlock.content.imageUrl || ''}
-                          onChange={(e) => updateBlockContent(selectedBlock.id, { imageUrl: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-200 dark:border-gray-800 rounded-lg bg-transparent text-xs font-mono"
-                        />
+                      <div className="flex flex-col gap-2.5">
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-bold">Imagen del Bloque</label>
+                        
+                        {selectedBlock.content.imageUrl && (
+                          <div className="relative w-full h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 mb-1.5 group">
+                            <img 
+                              src={selectedBlock.content.imageUrl} 
+                              alt="Vista previa" 
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateBlockContent(selectedBlock.id, { imageUrl: '' })}
+                              className="absolute top-1.5 right-1.5 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors text-[9px]"
+                              title="Remover imagen"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="https://images.unsplash.com/..."
+                            value={selectedBlock.content.imageUrl || ''}
+                            onChange={(e) => updateBlockContent(selectedBlock.id, { imageUrl: e.target.value })}
+                            className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-800 rounded-lg bg-transparent text-xs font-mono focus:ring-1 focus:ring-primary-celeste"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const demoImages = [
+                                'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800',
+                                'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800',
+                                'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800',
+                                'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
+                                'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800'
+                              ];
+                              const randomUrl = demoImages[Math.floor(Math.random() * demoImages.length)];
+                              updateBlockContent(selectedBlock.id, { imageUrl: randomUrl });
+                            }}
+                            className="px-2.5 py-2 bg-slate-900 hover:bg-primary-celeste hover:text-slate-950 text-white text-xs font-bold rounded-lg transition-all shrink-0"
+                            title="Simular subida de imagen"
+                          >
+                            📷 Subir
+                          </button>
+                        </div>
+
+                        {/* Quick select professional stock images gallery */}
+                        <div className="flex flex-col gap-1 mt-1">
+                          <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Stock Profesional Recomendado:</span>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {[
+                              { label: 'SaaS', url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400' },
+                              { label: 'Oficina', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400' },
+                              { label: 'Negocio', url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400' },
+                              { label: 'Equipo', url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400' },
+                              { label: 'Tech', url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400' }
+                            ].map((img, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => updateBlockContent(selectedBlock.id, { imageUrl: img.url })}
+                                className="h-8 rounded overflow-hidden border border-slate-200 hover:border-primary-celeste transition-all bg-slate-50 relative group"
+                                title={img.label}
+                              >
+                                <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

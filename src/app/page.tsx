@@ -1,14 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Globe, Server, Cpu, Database, Check, ArrowRight, 
   Search, Shield, Activity, Terminal, Code, Sparkles 
 } from 'lucide-react';
 import { dbAdapter } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push('/login');
+  }, [router]);
+
   // Domain Search state
   const [domainQuery, setDomainQuery] = useState('');
   const [domainExt, setDomainExt] = useState('.nram360.com');
@@ -94,10 +101,29 @@ export default function Home() {
   const currentHosting = getHostingDetails();
 
   return (
-    <div className="w-full min-h-[calc(100vh-3rem)] bg-gradient-to-br from-white via-[#f0f9ff] to-white text-slate-800 flex flex-col justify-between">
+    <div className="w-full min-h-screen bg-gradient-to-br from-white via-[#f0f9ff] to-white text-slate-800 flex flex-col justify-between">
+      
+      {/* Professional public header navigation */}
+      <nav className="h-16 bg-white/80 backdrop-blur-md text-slate-700 px-8 flex items-center justify-between border-b border-slate-200/80 text-sm font-bold z-50 sticky top-0 shrink-0 shadow-sm w-full">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-cyan-600 font-black tracking-widest text-lg">NRAM360</span>
+            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] uppercase font-black">SaaS</span>
+          </Link>
+        </div>
+        <div className="flex items-center gap-6">
+          <Link href="/" className="hover:text-cyan-600 text-slate-600 transition-colors">Plataforma</Link>
+          <Link 
+            href="/login" 
+            className="px-5 py-2.5 bg-slate-900 text-white hover:bg-cyan-500 hover:text-slate-950 font-extrabold rounded-xl text-xs transition-all shadow shadow-slate-950/15 hover:scale-102"
+          >
+            Iniciar Sesión
+          </Link>
+        </div>
+      </nav>
       
       {/* 1. HERO SECTION */}
-      <header className="max-w-6xl mx-auto w-full px-6 py-16 text-center flex flex-col items-center gap-6">
+      <header className="max-w-6xl mx-auto w-full px-6 py-12 text-center flex flex-col items-center gap-6">
         <div className="flex items-center gap-2 px-4 py-1.5 bg-celeste-claro/30 text-primary-celeste rounded-full text-xs font-black uppercase tracking-widest animate-pulse border border-celeste-claro/50">
           <Sparkles className="w-3.5 h-3.5" /> Portal de Infraestructura SaaS
         </div>

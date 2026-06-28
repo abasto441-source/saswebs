@@ -82,6 +82,13 @@ export interface Page {
   title: string;
   isPublished: boolean;
   structureJson: string;
+  seoTitle?: string;
+  seoDesc?: string;
+  permissions?: string[];
+  status?: 'draft' | 'review' | 'published' | 'archived';
+  isDeleted?: boolean;
+  parentPageId?: string;
+  templateId?: string;
 }
 
 export interface GlobalBlock {
@@ -962,7 +969,14 @@ class SupabaseMock {
       slug,
       title: pageData.title || existing?.title || 'Página',
       isPublished: pageData.isPublished !== undefined ? pageData.isPublished : (existing?.isPublished ?? true),
-      structureJson: pageData.structureJson || existing?.structureJson || '[]'
+      structureJson: pageData.structureJson || existing?.structureJson || '[]',
+      seoTitle: pageData.seoTitle || existing?.seoTitle || '',
+      seoDesc: pageData.seoDesc || existing?.seoDesc || '',
+      permissions: pageData.permissions || existing?.permissions || [],
+      status: pageData.status || existing?.status || 'draft',
+      isDeleted: pageData.isDeleted !== undefined ? pageData.isDeleted : (existing?.isDeleted ?? false),
+      parentPageId: pageData.parentPageId || existing?.parentPageId || '',
+      templateId: pageData.templateId || existing?.templateId || ''
     };
 
     if (index >= 0) {

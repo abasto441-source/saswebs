@@ -251,50 +251,68 @@ export default function PageRenderer({ isEditor = false }: PageRendererProps) {
               >
                 
                 {/* 1. HEADER BLOCK */}
-                {block.type === 'header' && (
-                  <header className="w-full flex items-center justify-between border-b border-celeste-claro/30 pb-4">
-                    <div 
-                      contentEditable={isEditor}
-                      suppressContentEditableWarning
-                      onBlur={(e) => handleTextChange('logo', e.target.innerText)}
-                      className="text-2xl font-bold text-primary-celeste cursor-text inline-edit-ring"
-                    >
-                      {block.content.logo}
-                    </div>
-                    <nav className="hidden md:flex items-center gap-6">
-                      {(block.content.links || []).map((link: any, lidx: number) => (
-                        <a 
-                          key={lidx} 
-                          href={link.url}
-                          className="text-texto-n hover:text-primary-celeste font-medium transition-colors"
-                        >
-                          {link.label}
-                        </a>
-                      ))}
-                    </nav>
-                  </header>
-                )}
+                {block.type === 'header' && (() => {
+                  const activeTenant = dbAdapter.getActiveTenant();
+                  const dbPages = dbAdapter.getPages().filter(
+                    p => p.tenantId === activeTenant?.id && !p.isDeleted && p.status === 'published'
+                  );
+                  const linksToRender = dbPages.length > 0 
+                    ? dbPages.map(p => ({ label: p.title, url: p.slug === 'inicio' ? '/' : `/${p.slug}` }))
+                    : (block.content.links || []);
+                  return (
+                    <header className="w-full flex items-center justify-between border-b border-celeste-claro/30 pb-4">
+                      <div 
+                        contentEditable={isEditor}
+                        suppressContentEditableWarning
+                        onBlur={(e) => handleTextChange('logo', e.target.innerText)}
+                        className="text-2xl font-bold text-primary-celeste cursor-text inline-edit-ring"
+                      >
+                        {block.content.logo}
+                      </div>
+                      <nav className="hidden md:flex items-center gap-6">
+                        {linksToRender.map((link: any, lidx: number) => (
+                          <a 
+                            key={lidx} 
+                            href={link.url}
+                            className="text-texto-n hover:text-primary-celeste font-medium transition-colors"
+                          >
+                            {link.label}
+                          </a>
+                        ))}
+                      </nav>
+                    </header>
+                  );
+                })()}
 
                 {/* 2. FOOTER BLOCK */}
-                {block.type === 'footer' && (
-                  <footer className="w-full text-center border-t border-celeste-claro/20 pt-8 flex flex-col items-center gap-4">
-                    <div className="flex items-center gap-6 mb-2">
-                      {(block.content.links || []).map((link: any, lidx: number) => (
-                        <a key={lidx} href={link.url} className="text-gray-400 hover:text-primary-celeste transition-colors text-sm">
-                          {link.label}
-                        </a>
-                      ))}
-                    </div>
-                    <p 
-                      contentEditable={isEditor}
-                      suppressContentEditableWarning
-                      onBlur={(e) => handleTextChange('copyText', e.target.innerText)}
-                      className="text-xs text-gray-500 cursor-text inline-edit-ring"
-                    >
-                      {block.content.copyText}
-                    </p>
-                  </footer>
-                )}
+                {block.type === 'footer' && (() => {
+                  const activeTenant = dbAdapter.getActiveTenant();
+                  const dbPages = dbAdapter.getPages().filter(
+                    p => p.tenantId === activeTenant?.id && !p.isDeleted && p.status === 'published'
+                  );
+                  const linksToRender = dbPages.length > 0 
+                    ? dbPages.map(p => ({ label: p.title, url: p.slug === 'inicio' ? '/' : `/${p.slug}` }))
+                    : (block.content.links || []);
+                  return (
+                    <footer className="w-full text-center border-t border-celeste-claro/20 pt-8 flex flex-col items-center gap-4">
+                      <div className="flex items-center gap-6 mb-2">
+                        {linksToRender.map((link: any, lidx: number) => (
+                          <a key={lidx} href={link.url} className="text-gray-400 hover:text-primary-celeste transition-colors text-sm">
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                      <p 
+                        contentEditable={isEditor}
+                        suppressContentEditableWarning
+                        onBlur={(e) => handleTextChange('copyText', e.target.innerText)}
+                        className="text-xs text-gray-500 cursor-text inline-edit-ring"
+                      >
+                        {block.content.copyText}
+                      </p>
+                    </footer>
+                  );
+                })()}
 
                 {/* 3. COLUMNS LAYOUT BLOCK */}
                 {block.type === 'columns_layout' && (

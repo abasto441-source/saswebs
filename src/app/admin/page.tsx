@@ -262,6 +262,20 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleTenantModule = (tenantId: string, moduleKey: 'isLmsEnabled' | 'isEcommerceEnabled' | 'isPosEnabled' | 'isReservasEnabled') => {
+    const updatedTenants = tenants.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, [moduleKey]: !t[moduleKey] };
+      }
+      return t;
+    }) as Tenant[];
+    setTenants(updatedTenants);
+    dbAdapter.saveTenants(updatedTenants);
+    if (activeTenant?.id === tenantId) {
+      setActiveTenant(dbAdapter.getActiveTenant());
+    }
+  };
+
   const handleCreateTenant = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !subdomain) return;
@@ -438,8 +452,29 @@ export default function AdminPage() {
           </button>
         </nav>
 
+        <div className="mt-auto border-t border-slate-100 pt-4 flex flex-col gap-2 shrink-0">
+          <div className="flex flex-col text-[11px] leading-tight text-slate-500 font-semibold px-2 mb-2">
+            <span>Sesión: Super Admin</span>
+            <span className="text-gray-400 font-mono">superadmin@nram360.com</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('saswebs_user');
+                localStorage.removeItem('saswebs_role');
+                localStorage.removeItem('mock_active_tenant_id');
+              }
+              window.location.href = '/login';
+            }}
+            className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-center transition-colors text-xs flex items-center justify-center gap-1.5"
+          >
+            ✕ Cerrar Sesión
+          </button>
+        </div>
+
         {activeTenant && (
-          <div className="mt-auto p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <div className="mt-3 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
             <span className="text-slate-500 block font-semibold mb-1">Inquilino Impersonado:</span>
             <span className="text-slate-900 font-extrabold block truncate">{activeTenant.name}</span>
             <span className="text-primary-celeste font-mono block mt-1">/{activeTenant.subdomain}</span>
@@ -638,6 +673,7 @@ export default function AdminPage() {
                       <th className="py-3 px-2">Empresa / Tenant</th>
                       <th className="py-3 px-2">Plan</th>
                       <th className="py-3 px-2">Dominio CNAME</th>
+                      <th className="py-3 px-2">Módulos Activos</th>
                       <th className="py-3 px-2">Estado</th>
                       <th className="py-3 px-2">Vencimiento</th>
                       <th className="py-3 px-2 text-right">Acción</th>
@@ -652,6 +688,33 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3.5 px-2 font-semibold">{t.plan}</td>
                         <td className="py-3.5 px-2 font-mono text-slate-500">{t.customDomain || 'No configurado'}</td>
+                        <td className="py-3.5 px-2">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {[
+                              { label: '📚 LMS', key: 'isLmsEnabled' },
+                              { label: '🛒 eCom', key: 'isEcommerceEnabled' },
+                              { label: '💳 POS', key: 'isPosEnabled' },
+                              { label: '📅 Reservas', key: 'isReservasEnabled' }
+                            ].map(mod => {
+                              const active = !!(t as any)[mod.key];
+                              return (
+                                <button
+                                  key={mod.key}
+                                  type="button"
+                                  onClick={() => handleToggleTenantModule(t.id, mod.key as any)}
+                                  className={`px-2 py-1 rounded-md text-[9px] uppercase font-black transition-all ${
+                                    active 
+                                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm' 
+                                      : 'bg-slate-100 text-slate-400 border border-slate-200 hover:border-slate-350'
+                                  }`}
+                                  title={`Haz clic para ${active ? 'desactivar' : 'activar'} ${mod.label}`}
+                                >
+                                  {mod.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </td>
                         <td className="py-3.5 px-2">
                           <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${t.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                             {t.status}

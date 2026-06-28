@@ -8,6 +8,8 @@
  *   - Tenant roles are fully customizable from the database
  */
 
+import { dbAdapter } from '@/lib/supabase';
+
 // ============================================================
 // PERMISSION CATALOGUE (the full list of what exists)
 // ============================================================
@@ -526,10 +528,16 @@ export function hasAnyPermission(user: UserSession, permissions: Permission[]): 
 export function getAllowedTabs(user: UserSession): string[] {
   const tabs: string[] = [];
 
-  if (hasPermission(user, PERMISSIONS.PRODUCTS_READ))           tabs.push("products");
-  if (hasPermission(user, PERMISSIONS.LMS_COURSES_READ))        tabs.push("courses");
-  if (hasPermission(user, PERMISSIONS.LMS_STUDENTS_READ))       tabs.push("lms_users");
-  if (hasPermission(user, PERMISSIONS.RESERVATIONS_READ))       tabs.push("reservations");
+  const activeTenant = dbAdapter.getActiveTenant();
+  const isLms = activeTenant?.isLmsEnabled ?? true;
+  const isEcommerce = activeTenant?.isEcommerceEnabled ?? true;
+  const isPos = activeTenant?.isPosEnabled ?? true;
+  const isReservas = activeTenant?.isReservasEnabled ?? true;
+
+  if (isEcommerce && hasPermission(user, PERMISSIONS.PRODUCTS_READ))           tabs.push("products");
+  if (isLms && hasPermission(user, PERMISSIONS.LMS_COURSES_READ))        tabs.push("courses");
+  if (isLms && hasPermission(user, PERMISSIONS.LMS_STUDENTS_READ))       tabs.push("lms_users");
+  if (isReservas && hasPermission(user, PERMISSIONS.RESERVATIONS_READ))       tabs.push("reservations");
   if (hasPermission(user, PERMISSIONS.COMPANY_MODULES_TOGGLE))  tabs.push("apps");
   if (hasPermission(user, PERMISSIONS.COMPANY_SETTINGS_READ))   tabs.push("settings");
   if (hasPermission(user, PERMISSIONS.CMS_ITEMS_READ))          tabs.push("cms");
@@ -540,14 +548,14 @@ export function getAllowedTabs(user: UserSession): string[] {
   if (hasPermission(user, PERMISSIONS.ACCOUNTING_READ))         tabs.push("accounting_accounts");
   if (hasPermission(user, PERMISSIONS.ACCOUNTING_POST_JOURNAL)) tabs.push("accounting_entries");
   if (hasPermission(user, PERMISSIONS.ACCOUNTING_REPORTS))      tabs.push("accounting_reports");
-  if (hasPermission(user, PERMISSIONS.LMS_SCHOOLS_MANAGE))      tabs.push("education_schools");
-  if (hasPermission(user, PERMISSIONS.LMS_STUDENTS_READ))       tabs.push("education_members");
+  if (isLms && hasPermission(user, PERMISSIONS.LMS_SCHOOLS_MANAGE))      tabs.push("education_schools");
+  if (isLms && hasPermission(user, PERMISSIONS.LMS_STUDENTS_READ))       tabs.push("education_members");
   if (hasPermission(user, PERMISSIONS.COMPANY_WHITELABEL_MANAGE)) tabs.push("whitelabel");
 
   // New modules permissions
   if (hasPermission(user, PERMISSIONS.CRM_PIPELINE_READ))       tabs.push("crm_pipeline");
-  if (hasPermission(user, PERMISSIONS.SALES_ORDERS_READ))       tabs.push("fulfillment_orders");
-  if (hasPermission(user, PERMISSIONS.PRODUCTS_READ))           tabs.push("inventory_warehouses");
+  if (isEcommerce && hasPermission(user, PERMISSIONS.SALES_ORDERS_READ))       tabs.push("fulfillment_orders");
+  if (isEcommerce && hasPermission(user, PERMISSIONS.PRODUCTS_READ))           tabs.push("inventory_warehouses");
   if (hasPermission(user, PERMISSIONS.COMPANY_AUDIT_READ))      tabs.push("helpdesk_support");
   if (hasPermission(user, PERMISSIONS.COMPANY_USERS_ASSIGN_ROLES)) tabs.push("hr_payroll");
 
