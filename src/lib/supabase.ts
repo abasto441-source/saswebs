@@ -1541,6 +1541,76 @@ class SupabaseMock {
     const filtered = all.filter((m: any) => m.tenantId !== tenantId);
     this.setStorage('mock_crm_whatsapp', [...filtered, ...messages]);
   }
+
+  getErpWorkOrders(tenantId: string): any[] {
+    const all = this.getStorage('mock_erp_work_orders', [
+      { id: 'wo-1', tenantId, product: 'Mesa de Madera Premium', qty: 50, status: 'in_progress', deadline: '2026-07-10', produced: 20 },
+      { id: 'wo-2', tenantId, product: 'Silla Ergonómica Pro', qty: 100, status: 'pending', deadline: '2026-07-20', produced: 0 }
+    ]);
+    return all.filter((r: any) => r.tenantId === tenantId);
+  }
+
+  saveErpWorkOrders(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_erp_work_orders', []);
+    const filtered = all.filter((r: any) => r.tenantId !== tenantId);
+    this.setStorage('mock_erp_work_orders', [...filtered, ...data]);
+  }
+
+  getErpQualityChecks(tenantId: string): any[] {
+    const all = this.getStorage('mock_erp_quality', [
+      { id: 'qc-1', tenantId, product: 'Mesa de Madera Premium', result: 'pass', notes: 'Sin defectos. Pintado uniforme.', date: '2026-06-27', inspector: 'Ana Martínez' },
+      { id: 'qc-2', tenantId, product: 'Tornillo M8', result: 'fail', notes: 'Dimensión fuera de tolerancia ±0.3mm', date: '2026-06-26', inspector: 'Luis Rojas' }
+    ]);
+    return all.filter((r: any) => r.tenantId === tenantId);
+  }
+
+  saveErpQualityChecks(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_erp_quality', []);
+    const filtered = all.filter((r: any) => r.tenantId !== tenantId);
+    this.setStorage('mock_erp_quality', [...filtered, ...data]);
+  }
+
+  getErpPurchaseOrders(tenantId: string): any[] {
+    const all = this.getStorage('mock_erp_po', [
+      { id: 'po-1', tenantId, supplier: 'Maderas del Sur S.A.', item: 'Tableros MDF 18mm', qty: 200, unitPrice: 12.50, status: 'approved', total: 2500 },
+      { id: 'po-2', tenantId, supplier: 'Ferretería Industrial Norte', item: 'Tornillos M6 (x1000)', qty: 5, unitPrice: 45.00, status: 'pending', total: 225 }
+    ]);
+    return all.filter((r: any) => r.tenantId === tenantId);
+  }
+
+  saveErpPurchaseOrders(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_erp_po', []);
+    const filtered = all.filter((r: any) => r.tenantId !== tenantId);
+    this.setStorage('mock_erp_po', [...filtered, ...data]);
+  }
+
+  getErpMaintenanceTasks(tenantId: string): any[] {
+    const all = this.getStorage('mock_erp_maintenance', [
+      { id: 'mt-1', tenantId, asset: 'CNC Router XL-3000', type: 'preventive', date: '2026-07-01', technician: 'Pedro Soto', status: 'scheduled' },
+      { id: 'mt-2', tenantId, asset: 'Compresor Industrial 80L', type: 'corrective', date: '2026-06-28', technician: 'Marco Díaz', status: 'in_progress' }
+    ]);
+    return all.filter((r: any) => r.tenantId === tenantId);
+  }
+
+  saveErpMaintenanceTasks(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_erp_maintenance', []);
+    const filtered = all.filter((r: any) => r.tenantId !== tenantId);
+    this.setStorage('mock_erp_maintenance', [...filtered, ...data]);
+  }
+
+  getErpDocuments(tenantId: string): any[] {
+    const all = this.getStorage('mock_erp_documents', [
+      { id: 'doc-1', tenantId, title: 'Contrato Marco Proveedores 2026', category: 'Contrato', date: '2026-06-01', signed: true, signerEmail: 'legal@empresa.com' },
+      { id: 'doc-2', tenantId, title: 'Política de Calidad ISO 9001', category: 'Política', date: '2026-05-15', signed: false, signerEmail: '' }
+    ]);
+    return all.filter((r: any) => r.tenantId === tenantId);
+  }
+
+  saveErpDocuments(tenantId: string, data: any[]) {
+    const all = this.getStorage('mock_erp_documents', []);
+    const filtered = all.filter((r: any) => r.tenantId !== tenantId);
+    this.setStorage('mock_erp_documents', [...filtered, ...data]);
+  }
 }
 
 export const dbAdapter = new SupabaseMock();
