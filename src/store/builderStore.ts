@@ -25,7 +25,8 @@ export interface Block {
     | 'cta_banner'
     | 'pricing_table'
     | 'reservations_calendar'
-    | 'cms_collection_grid';
+    | 'cms_collection_grid'
+    | 'form_builder';
   version: string;
 
   
@@ -355,6 +356,23 @@ export const DEFAULT_BLOCK_TEMPLATES: Record<Block['type'], Partial<Block>> = {
       endpoint: '/cms',
       collectionId: 'col-articles',
       limit: 4
+    }
+  },
+  form_builder: {
+    version: '1.0.0',
+    isVisible: true,
+    styles: { padding: 'py-16', bgColor: '#ffffff', textAlign: 'left', borderRadius: 'xl', animation: 'fade-in' },
+    content: {
+      title: 'Formulario de Inscripción y Firma',
+      fields: [
+        { id: 'f-name', type: 'text', label: 'Nombre Completo', placeholder: 'Ingresa tu nombre...', required: true },
+        { id: 'f-email', type: 'email', label: 'Correo Electrónico', placeholder: 'ejemplo@correo.com', required: true },
+        { id: 'f-terms', type: 'checkbox', label: 'Acepto los términos y condiciones de servicio', required: true },
+        { id: 'f-signature', type: 'signature', label: 'Firma Digital de Consentimiento', required: true },
+        { id: 'f-file', type: 'file', label: 'Subir Documento (PDF/Imagen)', required: false },
+        { id: 'f-captcha', type: 'captcha', label: 'Seguridad (CAPTCHA)', required: true }
+      ],
+      submitText: 'Enviar Formulario Firmado'
     }
   }
 };

@@ -26,7 +26,27 @@ const DEFAULT_BLOCK_TEMPLATES: Record<string, any> = {
   gallery: { id: mkId('gallery'), type: 'gallery', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Nuestra Galería', images: [] }, dynamicSource: null, seo: {}, responsive: {} },
   cta_banner: { id: mkId('cta_banner'), type: 'cta_banner', styles: { bgColor: '#0f172a', textAlign: 'center', padding: 'py-20' }, content: { title: '¡Empieza hoy mismo!', subtitle: 'Únete a miles de usuarios satisfechos.', buttonText: 'Registrarse Gratis', buttonLink: '/registro' }, dynamicSource: null, seo: {}, responsive: {} },
   pricing_table: { id: mkId('pricing_table'), type: 'pricing_table', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Nuestros Planes' }, dynamicSource: null, seo: {}, responsive: {} },
-  dynamic_product_grid: { id: mkId('dynamic_product_grid'), type: 'dynamic_product_grid', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Productos Destacados' }, dynamicSource: { type: 'products', limit: 6 }, seo: {}, responsive: {} }
+  dynamic_product_grid: { id: mkId('dynamic_product_grid'), type: 'dynamic_product_grid', styles: { bgColor: 'transparent', padding: 'py-16' }, content: { title: 'Productos Destacados' }, dynamicSource: { type: 'products', limit: 6 }, seo: {}, responsive: {} },
+  form_builder: { 
+    id: mkId('form_builder'), 
+    type: 'form_builder', 
+    styles: { bgColor: '#ffffff', padding: 'py-16', borderRadius: 'xl' }, 
+    content: { 
+      title: 'Formulario de Inscripción y Firma', 
+      fields: [
+        { id: 'f-name', type: 'text', label: 'Nombre Completo', placeholder: 'Ingresa tu nombre...', required: true },
+        { id: 'f-email', type: 'email', label: 'Correo Electrónico', placeholder: 'ejemplo@correo.com', required: true },
+        { id: 'f-terms', type: 'checkbox', label: 'Acepto los términos y condiciones de servicio', required: true },
+        { id: 'f-signature', type: 'signature', label: 'Firma Digital de Consentimiento', required: true },
+        { id: 'f-file', type: 'file', label: 'Subir Documento (PDF/Imagen)', required: false },
+        { id: 'f-captcha', type: 'captcha', label: 'Seguridad (CAPTCHA)', required: true }
+      ],
+      submitText: 'Enviar Formulario Firmado'
+    }, 
+    dynamicSource: null, 
+    seo: {}, 
+    responsive: {} 
+  }
 };
 const INITIAL_PAGE_STRUCTURE = { blocks: [DEFAULT_BLOCK_TEMPLATES.header, DEFAULT_BLOCK_TEMPLATES.hero, DEFAULT_BLOCK_TEMPLATES.columns_layout, DEFAULT_BLOCK_TEMPLATES.cta_banner, DEFAULT_BLOCK_TEMPLATES.footer] };
 
@@ -54,7 +74,7 @@ export default function BuilderPage() {
   } = useBuilderStore();
 
   const [activeTab, setActiveTab] = useState<'blocks' | 'structure' | 'pages' | 'ai_assistant' | 'git'>('blocks');
-  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [viewport, setViewport] = useState<'xxl' | 'xl' | 'desktop' | 'laptop' | 'tablet' | 'mobile' | 'small_mobile'>('desktop');
   const [activeCategories, setActiveCategories] = useState<Record<string, boolean>>({
     basicos: true,
     layout: true,
@@ -89,7 +109,7 @@ export default function BuilderPage() {
   }>({ show: false, missingModules: [], targetTemplateId: null });
 
   // Webflow Right Customizer Tab State
-  const [activeInspectorTab, setActiveInspectorTab] = useState<'content' | 'design' | 'seo' | 'permissions'>('content');
+  const [activeInspectorTab, setActiveInspectorTab] = useState<'content' | 'design' | 'seo' | 'permissions' | 'collaboration'>('content');
 
   // Cloudflare Workers AI Simulator State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -109,6 +129,74 @@ export default function BuilderPage() {
 
   // Pages sub-tab state (must be at component level to avoid hooks violations)
   const [pagesSubTab, setPagesSubTab] = useState<'list' | 'create' | 'settings' | 'trash'>('list');
+
+  // ==================== NIVEL 2, 3, 4: ENTERPRISE & PROFESSIONAL STATES ====================
+  // Global Design Tokens & Variables
+  const [primaryColor, setPrimaryColor] = useState('#0ea5e9');
+  const [secondaryColor, setSecondaryColor] = useState('#004b7e');
+  const [fontFamily, setFontFamily] = useState('Inter');
+  const [globalRadius, setGlobalRadius] = useState<'none' | 'md' | 'lg' | 'xl' | 'full'>('lg');
+  const [globalShadow, setGlobalShadow] = useState<'none' | 'sm' | 'md' | 'lg' | '2xl'>('md');
+  const [activeMasterTheme, setActiveMasterTheme] = useState<'light' | 'dark' | 'corporate' | 'modern' | 'minimal'>('corporate');
+
+  // Figma-Style Real-time Collaboration Simulation
+  const [isCollabActive, setIsCollabActive] = useState(true);
+  const [cursors, setCursors] = useState([
+    { name: 'María', x: 320, y: 180, color: '#ec4899', activeBlockId: 'b-hero' },
+    { name: 'Pedro', x: 740, y: 520, color: '#10b981', activeBlockId: 'b-faq' }
+  ]);
+
+  // Block Comments System
+  const [blockComments, setBlockComments] = useState<Record<string, Array<{ id: string; author: string; text: string; time: string; resolved: boolean }>>>({
+    'b-hero': [
+      { id: 'c1', author: 'María (Diseño)', text: 'El botón debería llamar más la atención, quizás con un gradiente.', time: '10:45 AM', resolved: false }
+    ],
+    'b-faq': [
+      { id: 'c2', author: 'Pedro (Soporte)', text: 'Agregar la pregunta sobre políticas de reembolso aquí.', time: '11:15 AM', resolved: false }
+    ]
+  });
+  const [newCommentText, setNewCommentText] = useState('');
+
+  // A/B Testing Simulator
+  const [abTestEnabled, setAbTestEnabled] = useState(false);
+  const [abVariant, setAbVariant] = useState<'A' | 'B'>('A');
+  const [abStats, setAbStats] = useState({
+    variantA: { visitors: 1240, conversions: 112, rate: '9.0%' },
+    variantB: { visitors: 1180, conversions: 145, rate: '12.2%' }
+  });
+
+  // Heatmap Overlay Selector
+  const [showHeatmap, setShowHeatmap] = useState(false);
+
+  // Real-time Lighthouse Auditor State
+  const [lighthouseScore, setLighthouseScore] = useState({ perf: 98, seo: 95, acc: 92, best: 100 });
+  const [lighthouseAlerts, setLighthouseAlerts] = useState<string[]>([
+    'La imagen del bloque Hero carece de etiqueta alt.',
+    'Contraste de color bajo en el bloque pie de página.',
+    'Optimización SEO: Se recomienda añadir palabras clave a los encabezados.'
+  ]);
+
+  // Multi-Language translation select
+  const [activeBuilderLang, setActiveBuilderLang] = useState<'ES' | 'EN' | 'PT' | 'FR'>('ES');
+  const [translatedTexts, setTranslatedTexts] = useState<Record<string, Record<string, string>>>({
+    'ES': { 'b-hero-title': 'Bienvenidos a Nuestra Plataforma', 'b-hero-sub': 'La solución todo-en-uno para tu negocio' },
+    'EN': { 'b-hero-title': 'Welcome to Our Platform', 'b-hero-sub': 'The all-in-one solution for your business' },
+    'PT': { 'b-hero-title': 'Bem-vindo à Nossa Plataforma', 'b-hero-sub': 'A solução tudo-en-uno para o seu negócio' },
+    'FR': { 'b-hero-title': 'Bienvenue sur notre plateforme', 'b-hero-sub': 'La solution tout-en-un pour votre entreprise' }
+  });
+
+  // Simulated cursor movements
+  useEffect(() => {
+    if (!isCollabActive) return;
+    const interval = setInterval(() => {
+      setCursors(prev => prev.map(c => ({
+        ...c,
+        x: Math.max(100, Math.min(1000, c.x + (Math.random() * 60 - 30))),
+        y: Math.max(150, Math.min(800, c.y + (Math.random() * 60 - 30)))
+      })));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isCollabActive]);
 
   // ==================== LEVEL 1: UNDO / REDO ENGINE ====================
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -712,6 +800,15 @@ export default function BuilderPage() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-100 dark:bg-[#0c0c0e] overflow-hidden select-none text-sm font-medium">
+      <style dangerouslySetInnerHTML={{ __html: `
+        :root {
+          --primary-celeste: ${primaryColor} !important;
+          --primary-glow: ${primaryColor}26 !important;
+        }
+        .canvas-grid {
+          font-family: ${fontFamily}, sans-serif !important;
+        }
+      `}} />
       
       {/* 1. VISUAL BUILDER HEADER */}
       <header className="h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] px-6 flex items-center justify-between z-10 shrink-0 text-slate-800">
@@ -727,29 +824,30 @@ export default function BuilderPage() {
           </div>
         </div>
 
-        {/* Viewport switcher */}
-        <div className="flex items-center bg-gray-100 dark:bg-black/30 p-1 rounded-full border border-gray-200 dark:border-gray-800">
-          <button 
-            onClick={() => setViewport('desktop')}
-            className={`p-2 rounded-full transition-all ${viewport === 'desktop' ? 'bg-white dark:bg-[#1d1d21] text-primary-celeste shadow' : 'text-gray-400 hover:text-black'}`}
-            title="Vista de Escritorio"
-          >
-            <Monitor className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => setViewport('tablet')}
-            className={`p-2 rounded-full transition-all ${viewport === 'tablet' ? 'bg-white dark:bg-[#1d1d21] text-primary-celeste shadow' : 'text-gray-400 hover:text-black'}`}
-            title="Vista de Tableta"
-          >
-            <TabletIcon className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => setViewport('mobile')}
-            className={`p-2 rounded-full transition-all ${viewport === 'mobile' ? 'bg-white dark:bg-[#1d1d21] text-primary-celeste shadow' : 'text-gray-400 hover:text-black'}`}
-            title="Vista de Móvil"
-          >
-            <Smartphone className="w-4 h-4" />
-          </button>
+        {/* Viewport switcher (7 Breakpoints) */}
+        <div className="flex items-center bg-gray-100 dark:bg-black/30 p-1 rounded-full border border-gray-200 dark:border-gray-800 text-[10px] font-bold">
+          {[
+            { id: 'xxl', label: 'XXL', width: '100% (1440px+)', title: 'Pantalla Ultra-Wide' },
+            { id: 'xl', label: 'XL', width: '1280px', title: 'Escritorio Grande' },
+            { id: 'desktop', label: 'Lg', width: '1024px', title: 'Laptop/Desktop' },
+            { id: 'laptop', label: 'Md', width: '960px', title: 'Laptop Pequeña' },
+            { id: 'tablet', label: 'Tab', width: '768px', title: 'Tableta' },
+            { id: 'mobile', label: 'Mob', width: '480px', title: 'Teléfono Móvil' },
+            { id: 'small_mobile', label: 'XS', width: '320px', title: 'Móvil Pequeño' }
+          ].map(bp => (
+            <button 
+              key={bp.id}
+              onClick={() => setViewport(bp.id as any)}
+              className={`px-2.5 py-1.5 rounded-full transition-all uppercase ${
+                viewport === bp.id 
+                  ? 'bg-white dark:bg-[#1d1d21] text-primary-celeste shadow font-black scale-105' 
+                  : 'text-gray-400 hover:text-black dark:hover:text-white'
+              }`}
+              title={`${bp.title} (${bp.width})`}
+            >
+              {bp.label}
+            </button>
+          ))}
         </div>
 
         {/* Actions */}
@@ -891,6 +989,7 @@ export default function BuilderPage() {
                     title: 'Formularios & Conversión',
                     blocks: [
                       { type: 'contact_form', label: 'Formulario Contacto', desc: 'Captación de leads directos', preview: <div className="h-8 bg-slate-50 border border-slate-100 rounded p-1 flex flex-col gap-1"><div className="w-full h-2 bg-white rounded border border-slate-200"></div><div className="w-full h-2 bg-slate-900 rounded text-center text-[4px] text-white font-bold flex items-center justify-center">Enviar</div></div> },
+                      { type: 'form_builder', label: 'Form Builder Pro', desc: 'Campos personalizados y Firma', preview: <div className="h-10 bg-slate-50 border border-slate-100 rounded p-1 flex flex-col gap-1"><div className="w-full h-2 bg-white rounded border border-slate-200"></div><div className="w-full h-2 bg-slate-900 rounded text-center text-[4px] text-white font-bold flex items-center justify-center">Enviar Firmado</div></div> },
                       { type: 'newsletter_sub', label: 'Suscripción Boletín', desc: 'Boletín de novedades', preview: <div className="h-8 bg-celeste-claro/10 border border-[#bce6ed] rounded flex items-center gap-1 p-1"><div className="w-2/3 h-3 bg-white rounded"></div><div className="w-1/3 h-3 bg-slate-900 rounded"></div></div> },
                       { type: 'cta_banner', label: 'Llamada a la Acción', desc: 'Cajas con botones directos', preview: <div className="h-8 bg-slate-900 text-white rounded flex justify-between items-center px-2 text-[5px]"><span className="font-bold">¡Prueba Gratis!</span><span className="bg-primary-celeste text-slate-950 font-bold px-1 rounded">Regístrate</span></div> },
                       { type: 'pricing_table', label: 'Tabla de Precios', desc: 'Checkout de planes comerciales', preview: <div className="grid grid-cols-2 gap-1 text-center"><div className="bg-slate-50 border border-slate-100 rounded p-0.5"><span className="text-[4px] block font-bold">Starter</span><span className="text-[6px] font-black block">$19</span></div><div className="bg-slate-50 border border-slate-100 rounded p-0.5"><span className="text-[4px] block font-bold">Pro</span><span className="text-[6px] font-black block">$49</span></div></div> }
@@ -1426,7 +1525,12 @@ export default function BuilderPage() {
         <main className="flex-grow canvas-grid overflow-y-auto p-8 flex justify-center">
           <div 
             className={`bg-white dark:bg-[#121214] shadow-2xl transition-all duration-300 relative border border-gray-200 dark:border-gray-800 ${
-              viewport === 'desktop' ? 'w-full max-w-6xl' : viewport === 'tablet' ? 'w-[768px]' : 'w-[375px]'
+              viewport === 'xxl' ? 'w-full max-w-7xl' : 
+              viewport === 'xl' ? 'w-[1280px]' : 
+              viewport === 'desktop' ? 'w-full max-w-5xl' : 
+              viewport === 'laptop' ? 'w-[960px]' : 
+              viewport === 'tablet' ? 'w-[768px]' : 
+              viewport === 'mobile' ? 'w-[480px]' : 'w-[320px]'
             }`}
           >
             {/* Viewport Frame labels */}
@@ -1461,6 +1565,65 @@ export default function BuilderPage() {
             )}
 
             <PageRenderer isEditor={true} />
+
+            {/* FIGMA-STYLE SIMULATED CURSORS */}
+            {isCollabActive && cursors.map(c => (
+              <div 
+                key={c.name}
+                className="absolute pointer-events-none transition-all duration-700 z-50 flex flex-col gap-1 items-start"
+                style={{ left: `${c.x}px`, top: `${c.y}px` }}
+              >
+                <svg className="w-5 h-5 drop-shadow-md" viewBox="0 0 24 24" fill="none">
+                  <path d="M4.5 3V20L9.8 14.5H19.5L4.5 3Z" fill={c.color} stroke="#ffffff" strokeWidth="2" />
+                </svg>
+                <div 
+                  className="px-2 py-0.5 rounded text-[9px] font-black text-white shadow-md uppercase tracking-wider whitespace-nowrap animate-pulse"
+                  style={{ backgroundColor: c.color }}
+                >
+                  {c.name}
+                </div>
+              </div>
+            ))}
+
+            {/* HEATMAP SIMULATOR OVERLAY */}
+            {showHeatmap && (
+              <div className="absolute inset-0 pointer-events-none z-40 mix-blend-multiply opacity-60 bg-gradient-to-b from-transparent via-transparent to-transparent">
+                <div className="absolute w-40 h-40 bg-red-500 rounded-full blur-3xl opacity-80 animate-pulse" style={{ left: '20%', top: '15%' }} />
+                <div className="absolute w-32 h-32 bg-orange-400 rounded-full blur-3xl opacity-75" style={{ left: '45%', top: '35%' }} />
+                <div className="absolute w-48 h-48 bg-yellow-400 rounded-full blur-3xl opacity-70" style={{ left: '30%', top: '60%' }} />
+                <div className="absolute w-36 h-36 bg-red-600 rounded-full blur-3xl opacity-80" style={{ left: '70%', top: '25%' }} />
+                <div className="absolute bottom-6 right-6 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-slate-700 pointer-events-auto flex flex-col gap-1 text-[11px] font-semibold">
+                  <span className="text-primary-celeste font-bold text-xs uppercase block">Simulador de Mapa de Calor</span>
+                  <span>🔥 Clics en Hero: 78% (Zona Caliente)</span>
+                  <span>🔥 Clics en CTA: 64%</span>
+                  <span>🔥 Profundidad Scroll: 45% (Faq)</span>
+                </div>
+              </div>
+            )}
+
+            {/* A/B TESTING VARIANT FLOATING BANNER */}
+            {abTestEnabled && (
+              <div className="absolute top-4 left-4 z-40 bg-slate-900 text-white border border-slate-700 rounded-xl p-3 shadow-lg pointer-events-auto flex items-center gap-3 text-xs">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">A/B Testing Activo</span>
+                  <span className="font-extrabold text-xs">Mostrando Variante: <span className="text-primary-celeste">{abVariant}</span></span>
+                </div>
+                <div className="flex gap-1.5">
+                  <button 
+                    onClick={() => setAbVariant('A')} 
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${abVariant === 'A' ? 'bg-primary-celeste text-slate-950' : 'bg-slate-800 hover:bg-slate-750 text-white'}`}
+                  >
+                    Vara. A
+                  </button>
+                  <button 
+                    onClick={() => setAbVariant('B')} 
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${abVariant === 'B' ? 'bg-primary-celeste text-slate-950' : 'bg-slate-800 hover:bg-slate-750 text-white'}`}
+                  >
+                    Vara. B
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
 
@@ -1472,7 +1635,8 @@ export default function BuilderPage() {
               { id: 'content', label: 'Contenido' },
               { id: 'design', label: 'Diseño' },
               { id: 'seo', label: 'SEO' },
-              { id: 'permissions', label: 'Datos/Permisos' }
+              { id: 'permissions', label: 'Datos/Permisos' },
+              { id: 'collaboration', label: '💬 Colab' }
             ].map(tab => (
               <button 
                 key={tab.id}
@@ -1782,6 +1946,61 @@ export default function BuilderPage() {
                       </label>
                     </div>
 
+                    {/* GLOBAL DESIGN TOKENS SECTION */}
+                    <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 mt-2">
+                      <span className="text-[10px] text-gray-400 uppercase font-black">Tokens de Diseño Globales</span>
+                      
+                      {/* Theme selection */}
+                      <div>
+                        <label className="block text-[9px] text-slate-500 mb-1">Tema Principal</label>
+                        <select 
+                          value={activeMasterTheme} 
+                          onChange={(e) => setActiveMasterTheme(e.target.value as any)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-transparent text-xs font-bold"
+                        >
+                          <option value="corporate">💼 Corporativo (Celeste)</option>
+                          <option value="modern">⚡ Moderno (Cian)</option>
+                          <option value="minimal">⚪ Minimalista</option>
+                          <option value="dark">🌑 Oscuro (Deep Slate)</option>
+                          <option value="light">☀️ Claro Puro</option>
+                        </select>
+                      </div>
+
+                      {/* Primary Color Picker */}
+                      <div>
+                        <label className="block text-[9px] text-slate-500 mb-1">Color de Marca (Primario)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="color" 
+                            value={primaryColor} 
+                            onChange={(e) => setPrimaryColor(e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer border border-slate-200 p-0"
+                          />
+                          <input 
+                            type="text" 
+                            value={primaryColor} 
+                            onChange={(e) => setPrimaryColor(e.target.value)}
+                            className="flex-grow px-3 py-1.5 border border-slate-200 rounded-lg bg-transparent text-xs font-mono font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Typography selector */}
+                      <div>
+                        <label className="block text-[9px] text-slate-500 mb-1">Tipografía Principal</label>
+                        <select 
+                          value={fontFamily} 
+                          onChange={(e) => setFontFamily(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-transparent text-xs font-bold"
+                        >
+                          <option value="Inter">Inter (Sans-Serif)</option>
+                          <option value="Outfit">Outfit (Moderna)</option>
+                          <option value="Playfair Display">Playfair Display (Serif)</option>
+                          <option value="Space Grotesk">Space Grotesk (Tech)</option>
+                        </select>
+                      </div>
+                    </div>
+
                   </div>
                 )}
 
@@ -1914,6 +2133,180 @@ export default function BuilderPage() {
                       </div>
                     </div>
 
+                  </div>
+                )}
+
+                {activeInspectorTab === 'collaboration' && (
+                  <div className="flex flex-col gap-4 text-xs font-semibold">
+                    
+                    {/* A. FIGMA COLLABORATION CONTROL */}
+                    <div className="flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-400 uppercase font-black">Colaboración Figma-Style</span>
+                        <span className={`h-2 w-2 rounded-full ${isCollabActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Muestra cursores flotantes y locks en vivo de otros editores.</p>
+                      
+                      <label className="flex items-center justify-between cursor-pointer mt-2">
+                        <span className="text-xs text-slate-700 font-bold">Simular Co-Editores Activos</span>
+                        <input 
+                          type="checkbox" 
+                          checked={isCollabActive}
+                          onChange={(e) => setIsCollabActive(e.target.checked)}
+                          className="rounded text-primary-celeste focus:ring-0" 
+                        />
+                      </label>
+                      
+                      {isCollabActive && (
+                        <div className="flex flex-col gap-1.5 mt-2 border-t border-slate-100 pt-2">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Editores en Línea:</span>
+                          {cursors.map(c => (
+                            <div key={c.name} className="flex items-center justify-between text-[10px]">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                                <span className="font-extrabold">{c.name}</span>
+                              </span>
+                              <span className="bg-slate-100 text-[8px] text-slate-500 px-1 py-0.5 rounded font-mono font-bold">Editando bloque</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* B. LIGHTHOUSE INTEGRATED AUDITOR */}
+                    <div className="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100">
+                      <span className="text-[10px] text-gray-400 uppercase font-black block">Lighthouse Auditor</span>
+                      
+                      {/* Lighthouse score circles */}
+                      <div className="grid grid-cols-4 gap-1 text-center mt-1">
+                        {[
+                          { score: lighthouseScore.perf, label: 'Perf.', color: 'text-green-600' },
+                          { score: lighthouseScore.seo, label: 'SEO', color: 'text-green-600' },
+                          { score: lighthouseScore.acc, label: 'Acces.', color: 'text-green-600' },
+                          { score: lighthouseScore.best, label: 'Best Pr.', color: 'text-green-600' }
+                        ].map(m => (
+                          <div key={m.label} className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-full border-2 border-green-500 flex items-center justify-center text-[10px] font-black text-green-600 bg-green-50">
+                              {m.score}%
+                            </div>
+                            <span className="text-[8px] font-bold text-slate-500 mt-1 uppercase block">{m.label}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Audit Warnings */}
+                      <div className="flex flex-col gap-2 mt-2">
+                        <span className="text-[9px] text-slate-400 font-bold uppercase">Alertas Encontradas:</span>
+                        {lighthouseAlerts.map((alertText, i) => (
+                          <div key={i} className="flex gap-2 items-start text-[10px] text-amber-800 bg-amber-50/50 border border-amber-200/50 p-2 rounded-lg font-bold">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <span className="leading-tight">{alertText}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* C. A/B TESTING & HEATMAP WIDGET */}
+                    <div className="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100">
+                      <span className="text-[10px] text-gray-400 uppercase font-black block">Marketing & Analítica</span>
+                      
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-xs text-slate-700 font-bold">Activar A/B Testing</span>
+                        <input 
+                          type="checkbox" 
+                          checked={abTestEnabled}
+                          onChange={(e) => setAbTestEnabled(e.target.checked)}
+                          className="rounded text-primary-celeste focus:ring-0" 
+                        />
+                      </label>
+
+                      {abTestEnabled && (
+                        <div className="flex flex-col gap-2 bg-white p-2.5 rounded-lg border border-slate-150 text-[10px] leading-tight font-bold">
+                          <div className="flex justify-between">
+                            <span>Variante A: {abStats.variantA.visitors} visitas</span>
+                            <span className="text-green-600 font-extrabold">{abStats.variantA.conversions} (Conv: {abStats.variantA.rate})</span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span>Variante B: {abStats.variantB.visitors} visitas</span>
+                            <span className="text-green-600 font-extrabold">{abStats.variantB.conversions} (Conv: {abStats.variantB.rate})</span>
+                          </div>
+                          <span className="text-[8px] text-slate-400 block mt-2 leading-relaxed font-semibold">Variante B rinde un 3.2% mejor. Puedes elegir fijarla como la definitiva al publicar.</span>
+                        </div>
+                      )}
+
+                      <label className="flex items-center justify-between cursor-pointer mt-1">
+                        <span className="text-xs text-slate-700 font-bold">Mostrar Mapa de Calor (Heatmap)</span>
+                        <input 
+                          type="checkbox" 
+                          checked={showHeatmap}
+                          onChange={(e) => setShowHeatmap(e.target.checked)}
+                          className="rounded text-primary-celeste focus:ring-0" 
+                        />
+                      </label>
+                    </div>
+
+                    {/* D. COMMENTS FOR SELECTED BLOCK */}
+                    <div className="flex flex-col gap-3 border-t border-slate-100 pt-3">
+                      <span className="text-[10px] text-gray-400 uppercase font-black block">Comentarios del Bloque</span>
+                      
+                      <div className="flex flex-col gap-2">
+                        {(!blockComments[selectedBlock.id] || blockComments[selectedBlock.id].filter(c => !c.resolved).length === 0) ? (
+                          <span className="text-[10px] text-slate-400 italic">No hay comentarios activos en este bloque.</span>
+                        ) : (
+                          blockComments[selectedBlock.id].filter(c => !c.resolved).map(comment => (
+                            <div key={comment.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-[10px] flex flex-col gap-1">
+                              <div className="flex justify-between font-bold">
+                                <span className="text-slate-850 font-black">{comment.author}</span>
+                                <span className="text-slate-400">{comment.time}</span>
+                              </div>
+                              <p className="text-slate-600 font-bold">{comment.text}</p>
+                              <button 
+                                onClick={() => {
+                                  setBlockComments(prev => {
+                                    const list = prev[selectedBlock.id] || [];
+                                    return {
+                                      ...prev,
+                                      [selectedBlock.id]: list.map(c => c.id === comment.id ? { ...c, resolved: true } : c)
+                                    };
+                                  });
+                                }}
+                                className="mt-1 text-[8px] font-black text-green-600 uppercase hover:underline text-left"
+                              >
+                                ✓ Resolver Comentario
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Add comment form */}
+                      <div className="flex flex-col gap-1.5 mt-1">
+                        <input 
+                          type="text" 
+                          placeholder="Añadir comentario sobre este bloque..."
+                          value={newCommentText}
+                          onChange={(e) => setNewCommentText(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newCommentText) {
+                              const newComment = {
+                                id: `c-${Date.now()}`,
+                                author: 'Super Admin',
+                                text: newCommentText,
+                                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                resolved: false
+                              };
+                              setBlockComments(prev => ({
+                                ...prev,
+                                [selectedBlock.id]: [...(prev[selectedBlock.id] || []), newComment]
+                              }));
+                              setNewCommentText('');
+                            }
+                          }}
+                        />
+                        <span className="text-[8px] text-slate-400 italic font-medium leading-tight">Presiona Enter para publicar.</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 

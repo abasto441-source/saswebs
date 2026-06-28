@@ -954,6 +954,109 @@ export default function PageRenderer({ isEditor = false }: PageRendererProps) {
                   </div>
                 )}
 
+                {/* 16b. FORM BUILDER BLOCK */}
+                {block.type === 'form_builder' && (
+                  <div className="max-w-xl mx-auto w-full p-8 border border-slate-200 rounded-3xl bg-white dark:bg-black/20 shadow-xl">
+                    <h2 
+                      contentEditable={isEditor}
+                      suppressContentEditableWarning
+                      onBlur={(e) => handleTextChange('title', e.target.innerText)}
+                      className="text-2xl font-black text-slate-900 cursor-text inline-edit-ring"
+                    >
+                      {block.content.title || 'Formulario Personalizado'}
+                    </h2>
+                    
+                    {contactSuccess ? (
+                      <div className="p-5 bg-green-50 dark:bg-green-900/10 border border-green-200 text-green-700 dark:text-green-400 rounded-2xl text-center font-extrabold text-sm mt-6">
+                        ✓ ¡Formulario y Firma Digital recibidos con éxito! Procesando automatizaciones...
+                      </div>
+                    ) : (
+                      <form onSubmit={(e) => { 
+                        e.preventDefault(); 
+                        setContactSuccess(true); 
+                        triggerWorkflowSimulation('form_builder_submit', 'Formulario Pro firmado digitalmente.');
+                      }} className="flex flex-col gap-5 mt-6">
+                        
+                        {(block.content.fields || []).map((field: any) => (
+                          <div key={field.id} className="flex flex-col gap-1 text-left">
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              {field.label} {field.required && <span className="text-red-500">*</span>}
+                            </label>
+                            
+                            {field.type === 'text' && (
+                              <input 
+                                required={field.required} 
+                                type="text" 
+                                placeholder={field.placeholder}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-transparent focus:ring-1 focus:ring-primary-celeste" 
+                              />
+                            )}
+
+                            {field.type === 'email' && (
+                              <input 
+                                required={field.required} 
+                                type="email" 
+                                placeholder={field.placeholder}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-transparent focus:ring-1 focus:ring-primary-celeste" 
+                              />
+                            )}
+
+                            {field.type === 'checkbox' && (
+                              <label className="flex items-center gap-2 cursor-pointer mt-1 font-semibold text-slate-700">
+                                <input 
+                                  required={field.required} 
+                                  type="checkbox" 
+                                  className="rounded text-primary-celeste focus:ring-0 border-slate-200" 
+                                />
+                                <span className="text-xs">{field.label}</span>
+                              </label>
+                            )}
+
+                            {field.type === 'file' && (
+                              <div className="border-2 border-dashed border-slate-200 hover:border-primary-celeste rounded-xl p-4 bg-slate-50/50 flex flex-col items-center justify-center cursor-pointer transition-colors">
+                                <span className="text-xs text-slate-500 font-bold">📄 Clic para subir archivos (PDF, PNG, JPG)</span>
+                                <span className="text-[9px] text-slate-400 mt-1">Máximo 10 MB</span>
+                              </div>
+                            )}
+
+                            {field.type === 'signature' && (
+                              <div className="border border-slate-200 rounded-xl bg-slate-50 p-3 flex flex-col gap-2 relative">
+                                <span className="text-[10px] text-slate-400 font-mono block">DIBUJE SU FIRMA SOBRE EL RECUADRO:</span>
+                                <div className="h-32 bg-white rounded-lg border border-slate-200 cursor-crosshair flex flex-col items-center justify-center relative overflow-hidden group">
+                                  <div className="absolute bottom-6 left-6 right-6 border-b border-dashed border-slate-300 pointer-events-none" />
+                                  <svg className="absolute inset-0 pointer-events-none w-full h-full">
+                                    <path d="M 50,70 Q 90,30 140,70 T 260,60" fill="none" stroke="#0ea5e9" strokeWidth="2.5" className="animate-fade-in" />
+                                  </svg>
+                                  <span className="absolute bottom-2 right-2 text-[8px] bg-cyan-100 text-cyan-800 font-mono font-bold px-1 py-0.5 rounded">Firma Encriptada</span>
+                                </div>
+                                <button type="button" className="text-[9px] font-black text-red-500 uppercase text-right hover:underline">Limpiar Firma</button>
+                              </div>
+                            )}
+
+                            {field.type === 'captcha' && (
+                              <div className="flex gap-3 items-center border border-slate-150 rounded-xl p-3 bg-slate-50/50">
+                                <div className="bg-slate-200/80 rounded px-3 py-1.5 font-mono text-xs font-black tracking-wider text-slate-700 select-none">
+                                  8 + 3 =
+                                </div>
+                                <input 
+                                  required={field.required}
+                                  type="text" 
+                                  placeholder="Respuesta..." 
+                                  className="w-24 px-3 py-1 border border-slate-200 rounded-lg bg-white text-xs font-bold" 
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        <button type="submit" className="w-full py-3 bg-slate-900 text-white font-extrabold rounded-xl mt-3 hover:bg-primary-celeste hover:text-slate-950 hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                          {block.content.submitText || 'Enviar Formulario'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+
                 {/* 17. NEWSLETTER SUBSCRIPTION BLOCK */}
                 {block.type === 'newsletter_sub' && (
                   <div className="max-w-xl mx-auto w-full text-center">
