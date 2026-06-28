@@ -799,7 +799,7 @@ export default function BuilderPage() {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col bg-gray-100 dark:bg-[#0c0c0e] overflow-hidden select-none text-sm font-medium">
+    <div className="w-full h-screen flex flex-col bg-slate-50 overflow-hidden select-none text-sm font-medium">
       <style dangerouslySetInnerHTML={{ __html: `
         :root {
           --primary-celeste: ${primaryColor} !important;
@@ -811,7 +811,7 @@ export default function BuilderPage() {
       `}} />
       
       {/* 1. VISUAL BUILDER HEADER */}
-      <header className="h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] px-6 flex items-center justify-between z-10 shrink-0 text-slate-800">
+      <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between z-10 shrink-0 text-slate-800">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-500 hover:text-black transition-colors">
             <ArrowLeft className="w-5 h-5" />
@@ -921,9 +921,9 @@ export default function BuilderPage() {
       <div className="flex-grow flex w-full overflow-hidden text-slate-800 dark:text-slate-200">
         
         {/* 2. LEFT SIDEBAR: Drawer of tabs */}
-        <aside className="w-80 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] flex flex-col overflow-hidden shrink-0">
+        <aside className="w-80 border-r border-slate-200 bg-white flex flex-col overflow-hidden shrink-0 text-slate-700">
           
-          <div className="flex border-b border-gray-200 dark:border-gray-800 p-2 gap-1 bg-gray-50/50 dark:bg-black/10">
+          <div className="flex border-b border-slate-200 p-2 gap-1 bg-slate-50/50">
             {[
               { id: 'blocks', label: '🧩 Bloques' },
               { id: 'structure', label: '🌳 Estructura' },
@@ -1628,9 +1628,9 @@ export default function BuilderPage() {
         </main>
 
         {/* 4. RIGHT SIDEBAR: Webflow-style properties inspector */}
-        <aside className="w-80 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] flex flex-col overflow-hidden shrink-0 text-slate-800 dark:text-slate-200">
+        <aside className="w-80 border-l border-slate-200 bg-white flex flex-col overflow-hidden shrink-0 text-slate-800">
           
-          <div className="flex border-b border-gray-200 dark:border-gray-800 p-2 gap-1 bg-gray-50/50 dark:bg-black/10">
+          <div className="flex border-b border-slate-200 p-2 gap-1 bg-slate-50/50">
             {[
               { id: 'content', label: 'Contenido' },
               { id: 'design', label: 'Diseño' },
