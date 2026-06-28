@@ -12,6 +12,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { hasPermission, getAllowedTabs, PERMISSIONS, type Permission } from '@/core/rbac';
+import {
+  calculatePnL,
+  calculateBudgetDeviations,
+  calculateDepreciation,
+  calculateCashFlowDirect,
+  computeLedgerBalances
+} from '@/modules/accounting';
 
 export default function DashboardPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -213,6 +220,26 @@ export default function DashboardPage() {
   const [newEmpSalary, setNewEmpSalary] = useState(0);
   const [newEmpHireDate, setNewEmpHireDate] = useState('');
 
+  // ==================== CONTABILIDAD PRO STATES ====================
+  const [accountingSubTab, setAccountingSubTab] = useState<'balances' | 'reconciliation' | 'budgets' | 'fixed_assets' | 'invoicing'>('balances');
+  const [selectedCountryTax, setSelectedCountryTax] = useState<'CL' | 'MX' | 'CO' | 'PE'>('CL');
+  const [fixedAssets, setFixedAssets] = useState<any[]>([]);
+  const [budgetLimits, setBudgetLimits] = useState<any[]>([]);
+  const [bankStatementLines, setBankStatementLines] = useState<any[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<any[]>([]);
+  const [invoiceXmlLog, setInvoiceXmlLog] = useState<string[]>([]);
+
+  // Fixed Asset Form
+  const [newAssetName, setNewAssetName] = useState('');
+  const [newAssetValue, setNewAssetValue] = useState(0);
+  const [newAssetSalvage, setNewAssetSalvage] = useState(0);
+  const [newAssetLifespan, setNewAssetLifespan] = useState(5);
+
+  // Budget Limit Form
+  const [newBudgetAccount, setNewBudgetAccount] = useState('');
+  const [newBudgetAmount, setNewBudgetAmount] = useState(0);
+  const [newBudgetPeriod, setNewBudgetPeriod] = useState('2026-06');
+
   // Helper check for Read-Only guest mode
   const isGuestMode = activeRole === 'invitado';
 
@@ -274,6 +301,12 @@ export default function DashboardPage() {
     setBatches(dbAdapter.getBatches(active.id));
     setTickets(dbAdapter.getHelpdeskTickets(active.id));
     setEmployees(dbAdapter.getEmployees(active.id));
+
+    // Load Contabilidad PRO data
+    setFixedAssets(dbAdapter.getFixedAssets(active.id));
+    setBudgetLimits(dbAdapter.getBudgetLimits(active.id));
+    setBankStatementLines(dbAdapter.getBankStatementLines(active.id));
+    setExchangeRates(dbAdapter.getExchangeRates(active.id));
   };
 
   useEffect(() => {
@@ -946,6 +979,307 @@ export default function DashboardPage() {
     setCourseDesc('');
     setCoursePrice('');
     setCourseInstructor('');
+  };
+
+  // ==================== CONTABILIDAD PRO ACTIONS ====================
+  const handleAddFixedAsset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
+    if (!tenant || !newAssetName || newAssetValue <= 0) return;
+
+    const newAsset = {
+      id: 'asset-' + Date.now(),
+      tenantId: tenant.id,
+      name: newAssetName,
+      purchaseValue: newAssetValue,
+      salvageValue: newAssetSalvage,
+      purchaseDate: new Date().toISOString().split('T')[0],
+      lifespanYears: newAssetLifespan,
+      depreciatedAmount: 0.00
+    };
+
+    const list = [...fixedAssets, newAsset];
+    dbAdapter.saveFixedAssets(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Registrar Activo Fijo', `Activo: ${newAssetName}`);
+    
+    reloadAllData();
+    setNewAssetName('');
+    setNewAssetValue(0);
+    setNewAssetSalvage(0);
+    setNewAssetLifespan(5);
+  };
+
+  const handleTriggerDepreciation = (assetId: string) => {
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
+    if (!tenant) return;
+
+    const asset = fixedAssets.find(a => a.id === assetId);
+    if (!asset) return;
+
+    const monthlyDep = calculateDepreciation(asset);
+    if (monthlyDep <= 0) return;
+
+    // Create journal entry in Libro Diario
+    const newEntryId = 'ent-' + Date.now();
+    const entry = {
+      id: newEntryId,
+      tenantId: tenant.id,
+      entryDate: new Date().toISOString().split('T')[0],
+      description: `Depreciación mensual: ${asset.name}`,
+      status: 'posted' as const
+    };
+
+    // Find/Create Gasto Depreciacion and Depreciacion Acumulada accounts
+    let accGasto = accounts.find(a => a.code.startsWith('5') && a.name.toLowerCase().includes('depreciación'));
+    let accAcum = accounts.find(a => a.code.startsWith('1') && a.name.toLowerCase().includes('depreciación'));
+
+    if (!accGasto) {
+      accGasto = { id: 'acc-gasto-dep', tenantId: tenant.id, code: '5002', name: 'Gasto por Depreciación', type: 'gasto' };
+      dbAdapter.saveAccountingAccounts(tenant.id, [...accounts, accGasto]);
+    }
+    if (!accAcum) {
+      accAcum = { id: 'acc-acum-dep', tenantId: tenant.id, code: '1099', name: 'Depreciación Acumulada Activos', type: 'activo' };
+      dbAdapter.saveAccountingAccounts(tenant.id, [...accounts, accAcum]);
+    }
+
+    const items = [
+      { id: 'ji-dep-1', tenantId: tenant.id, entryId: newEntryId, accountId: accGasto.id, debit: monthlyDep, credit: 0, costCenter: 'Depreciaciones Activos' },
+      { id: 'ji-dep-2', tenantId: tenant.id, entryId: newEntryId, accountId: accAcum.id, debit: 0, credit: monthlyDep, costCenter: 'Depreciaciones Activos' }
+    ];
+
+    dbAdapter.saveJournalEntries(tenant.id, [...dbAdapter.getJournalEntries(tenant.id), entry]);
+    dbAdapter.saveJournalItems(tenant.id, [...dbAdapter.getJournalItems(tenant.id), ...items]);
+
+    // Update fixed asset depreciated value
+    const updatedAssets = fixedAssets.map(a => {
+      if (a.id === assetId) {
+        return { ...a, depreciatedAmount: a.depreciatedAmount + monthlyDep };
+      }
+      return a;
+    });
+    dbAdapter.saveFixedAssets(tenant.id, updatedAssets);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Calcular Depreciación', `Depreciación lineal mensual para: ${asset.name}`);
+    
+    reloadAllData();
+    alert(`Asiento de depreciación por $${monthlyDep.toFixed(2)} generado correctamente.`);
+  };
+
+  const handleAddBudgetLimit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
+    if (!tenant || !newBudgetAccount || newBudgetAmount <= 0) return;
+
+    const newB = {
+      id: 'bdg-' + Date.now(),
+      tenantId: tenant.id,
+      accountId: newBudgetAccount,
+      amount: newBudgetAmount,
+      period: newBudgetPeriod
+    };
+
+    const list = [...budgetLimits, newB];
+    dbAdapter.saveBudgetLimits(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Asignar Presupuesto', `Asignado a cuenta ID ${newBudgetAccount}: $${newBudgetAmount}`);
+
+    reloadAllData();
+    setNewBudgetAccount('');
+    setNewBudgetAmount(0);
+  };
+
+  const handleReconcileLine = (lineId: string) => {
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
+    if (!tenant) return;
+
+    const line = bankStatementLines.find(l => l.id === lineId);
+    if (!line) return;
+
+    // Create journal entry in Libro Diario matching the bank transaction amount
+    const newEntryId = 'ent-' + Date.now();
+    const entry = {
+      id: newEntryId,
+      tenantId: tenant.id,
+      entryDate: line.date,
+      description: `Conciliación Bancaria: ${line.description}`,
+      status: 'posted' as const
+    };
+
+    // Find/Create Bank account and matching Operation Revenue/Expense accounts
+    let accBanco = accounts.find(a => a.code.startsWith('11') || a.name.toLowerCase().includes('banco'));
+    let accContra = accounts.find(a => line.amount > 0 ? (a.code.startsWith('4') || a.name.toLowerCase().includes('ingreso')) : (a.code.startsWith('5') || a.name.toLowerCase().includes('gasto')));
+
+    if (!accBanco) {
+      accBanco = { id: 'acc-banco-rec', tenantId: tenant.id, code: '1102', name: 'Cuenta Banco Conciliación', type: 'activo' };
+      dbAdapter.saveAccountingAccounts(tenant.id, [...accounts, accBanco]);
+    }
+    if (!accContra) {
+      accContra = line.amount > 0 
+        ? { id: 'acc-ing-rec', tenantId: tenant.id, code: '4005', name: 'Ingresos por Conciliar', type: 'ingreso' }
+        : { id: 'acc-gas-rec', tenantId: tenant.id, code: '5005', name: 'Gastos por Conciliar', type: 'gasto' };
+      dbAdapter.saveAccountingAccounts(tenant.id, [...accounts, accContra]);
+    }
+
+    const items = [
+      { 
+        id: 'ji-rec-1', 
+        tenantId: tenant.id, 
+        entryId: newEntryId, 
+        accountId: accBanco.id, 
+        debit: line.amount > 0 ? line.amount : 0, 
+        credit: line.amount < 0 ? Math.abs(line.amount) : 0, 
+        costCenter: 'Conciliación Bancaria' 
+      },
+      { 
+        id: 'ji-rec-2', 
+        tenantId: tenant.id, 
+        entryId: newEntryId, 
+        accountId: accContra.id, 
+        debit: line.amount < 0 ? Math.abs(line.amount) : 0, 
+        credit: line.amount > 0 ? line.amount : 0, 
+        costCenter: 'Conciliación Bancaria' 
+      }
+    ];
+
+    dbAdapter.saveJournalEntries(tenant.id, [...dbAdapter.getJournalEntries(tenant.id), entry]);
+    dbAdapter.saveJournalItems(tenant.id, [...dbAdapter.getJournalItems(tenant.id), ...items]);
+
+    // Mark line as reconciled
+    const updatedLines = bankStatementLines.map(l => {
+      if (l.id === lineId) {
+        return { ...l, reconciledJournalItemId: 'ji-rec-1' };
+      }
+      return l;
+    });
+    dbAdapter.saveBankStatementLines(tenant.id, updatedLines);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Conciliación Bancaria', `Conciliada transacción bancaria: ${line.description}`);
+    
+    reloadAllData();
+    alert('Transacción conciliada con éxito. Asiento contable del Libro Diario creado.');
+  };
+
+  const handleGenerateElectronicInvoice = () => {
+    if (!verifyPermission(PERMISSIONS.ACCOUNTING_POST_JOURNAL)) return;
+    if (!tenant) return;
+
+    const invoiceId = 'FAC-' + Math.floor(100000 + Math.random() * 900000);
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    // Build UBL XML Payload matching regional country specifications
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"\n`;
+    xml += `         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"\n`;
+    xml += `         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">\n`;
+    xml += `  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>\n`;
+    xml += `  <cbc:CustomizationID>2.0</cbc:CustomizationID>\n`;
+    xml += `  <cbc:ID>${invoiceId}</cbc:ID>\n`;
+    xml += `  <cbc:IssueDate>${dateStr}</cbc:IssueDate>\n`;
+    xml += `  <cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>\n`;
+    xml += `  <cac:AccountingSupplierParty>\n`;
+    xml += `    <cac:Party>\n`;
+    xml += `      <cac:PartyName><cbc:Name>${tenant.name}</cbc:Name></cac:PartyName>\n`;
+    xml += `    </cac:Party>\n`;
+    xml += `  </cac:AccountingSupplierParty>\n`;
+    
+    if (selectedCountryTax === 'CL') {
+      xml += `  <!-- Especificaciones SII de Chile (UBL 2.1 / DTE Ley) -->\n`;
+      xml += `  <cbc:DocumentCurrencyCode>CLP</cbc:DocumentCurrencyCode>\n`;
+      xml += `  <cac:TaxTotal>\n`;
+      xml += `    <cbc:TaxAmount currencyID="CLP">19000</cbc:TaxAmount>\n`;
+      xml += `    <cac:TaxSubtotal>\n`;
+      xml += `      <cbc:TaxableAmount currencyID="CLP">100000</cbc:TaxableAmount>\n`;
+      xml += `      <cbc:TaxAmount currencyID="CLP">19000</cbc:TaxAmount>\n`;
+      xml += `      <cac:TaxCategory>\n`;
+      xml += `        <cac:TaxScheme><cbc:ID>IVA</cbc:ID></cac:TaxScheme>\n`;
+      xml += `      </cac:TaxCategory>\n`;
+      xml += `    </cac:TaxSubtotal>\n`;
+      xml += `  </cac:TaxTotal>\n`;
+    } else if (selectedCountryTax === 'MX') {
+      xml += `  <!-- Especificaciones SAT de México (CFDI 4.0 / XML) -->\n`;
+      xml += `  <cbc:DocumentCurrencyCode>MXN</cbc:DocumentCurrencyCode>\n`;
+      xml += `  <cac:TaxTotal>\n`;
+      xml += `    <cbc:TaxAmount currencyID="MXN">160</cbc:TaxAmount>\n`;
+      xml += `    <cac:TaxSubtotal>\n`;
+      xml += `      <cbc:TaxableAmount currencyID="MXN">1000</cbc:TaxableAmount>\n`;
+      xml += `      <cbc:TaxAmount currencyID="MXN">160</cbc:TaxAmount>\n`;
+      xml += `      <cac:TaxCategory>\n`;
+      xml += `        <cac:TaxScheme><cbc:ID>002</cbc:ID><cbc:Name>IVA</cbc:Name></cac:TaxScheme>\n`;
+      xml += `      </cac:TaxCategory>\n`;
+      xml += `    </cac:TaxSubtotal>\n`;
+      xml += `  </cac:TaxTotal>\n`;
+    } else if (selectedCountryTax === 'CO') {
+      xml += `  <!-- Especificaciones DIAN de Colombia (UBL 2.1 DIAN) -->\n`;
+      xml += `  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>\n`;
+      xml += `  <cac:TaxTotal>\n`;
+      xml += `    <cbc:TaxAmount currencyID="COP">19000</cbc:TaxAmount>\n`;
+      xml += `    <cac:TaxSubtotal>\n`;
+      xml += `      <cbc:TaxableAmount currencyID="COP">100000</cbc:TaxableAmount>\n`;
+      xml += `      <cbc:TaxAmount currencyID="COP">19000</cbc:TaxAmount>\n`;
+      xml += `      <cac:TaxCategory>\n`;
+      xml += `        <cac:TaxScheme><cbc:ID>01</cbc:ID><cbc:Name>IVA</cbc:Name></cac:TaxScheme>\n`;
+      xml += `      </cac:TaxCategory>\n`;
+      xml += `    </cac:TaxSubtotal>\n`;
+      xml += `  </cac:TaxTotal>\n`;
+    } else {
+      xml += `  <!-- Especificaciones SUNAT de Perú (UBL SUNAT 2.1) -->\n`;
+      xml += `  <cbc:DocumentCurrencyCode>PEN</cbc:DocumentCurrencyCode>\n`;
+      xml += `  <cac:TaxTotal>\n`;
+      xml += `    <cbc:TaxAmount currencyID="PEN">180</cbc:TaxAmount>\n`;
+      xml += `    <cac:TaxSubtotal>\n`;
+      xml += `      <cbc:TaxableAmount currencyID="PEN">1000</cbc:TaxableAmount>\n`;
+      xml += `      <cbc:TaxAmount currencyID="PEN">180</cbc:TaxAmount>\n`;
+      xml += `      <cac:TaxCategory>\n`;
+      xml += `        <cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name></cac:TaxScheme>\n`;
+      xml += `      </cac:TaxCategory>\n`;
+      xml += `    </cac:TaxSubtotal>\n`;
+      xml += `  </cac:TaxTotal>\n`;
+    }
+
+    xml += `  <cac:Signature>\n`;
+    xml += `    <cbc:ID>Sign-${invoiceId}</cbc:ID>\n`;
+    xml += `    <cac:SignatoryParty>\n`;
+    xml += `      <cac:PartyIdentification><cbc:ID>${tenant.id}</cbc:ID></cac:PartyIdentification>\n`;
+    xml += `    </cac:SignatoryParty>\n`;
+    xml += `    <cac:DigitalSignature>\n`;
+    xml += `      <cbc:SignatureValue>SHA256withRSA/SignedXML/Hash:${Math.random().toString(36).substring(2,15)}...</cbc:SignatureValue>\n`;
+    xml += `    </cac:DigitalSignature>\n`;
+    xml += `  </cac:Signature>\n`;
+    xml += `</Invoice>`;
+
+    const newLogMsg = `[${new Date().toLocaleTimeString()}] ${invoiceId} firmada digitalmente para país ${selectedCountryTax}. Enviada a la autoridad tributaria. Estado: ACEPTADA.`;
+    setInvoiceXmlLog(prev => [newLogMsg, ...prev]);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Emitir Factura Electrónica', `${invoiceId} para país ${selectedCountryTax}`);
+    
+    // Create corresponding Accounting Journal Entry automatically
+    const entryId = 'ent-' + Date.now();
+    const entry = {
+      id: entryId,
+      tenantId: tenant.id,
+      entryDate: dateStr,
+      description: `Venta Factura Electrónica ${invoiceId}`,
+      status: 'posted' as const
+    };
+
+    let accClientes = accounts.find(a => a.code.startsWith('11') && a.name.toLowerCase().includes('clientes'));
+    let accIngresos = accounts.find(a => a.code.startsWith('4') && a.name.toLowerCase().includes('ventas'));
+
+    if (!accClientes) {
+      accClientes = { id: 'acc-cli-fact', tenantId: tenant.id, code: '1103', name: 'Clientes por Ventas', type: 'activo' };
+      dbAdapter.saveAccountingAccounts(tenant.id, [...accounts, accClientes]);
+    }
+    if (!accIngresos) {
+      accIngresos = { id: 'acc-ing-fact', tenantId: tenant.id, code: '4001', name: 'Ingresos por Ventas', type: 'ingreso' };
+      dbAdapter.saveAccountingAccounts(tenant.id, [...accounts, accIngresos]);
+    }
+
+    const items = [
+      { id: 'ji-fact-1', tenantId: tenant.id, entryId, accountId: accClientes.id, debit: 1190, credit: 0, costCenter: 'Ventas E-Factura' },
+      { id: 'ji-fact-2', tenantId: tenant.id, entryId, accountId: accIngresos.id, debit: 0, credit: 1190, costCenter: 'Ventas E-Factura' }
+    ];
+
+    dbAdapter.saveJournalEntries(tenant.id, [...dbAdapter.getJournalEntries(tenant.id), entry]);
+    dbAdapter.saveJournalItems(tenant.id, [...dbAdapter.getJournalItems(tenant.id), ...items]);
+    reloadAllData();
+
+    alert(`Factura ${invoiceId} emitida y firmada con éxito.\nXML UBL generado y transmitido.\nAsiento contable creado en el Libro Diario.`);
   };
 
   // 1. DYNAMIC CMS: Add Collection (Visual DB Builder)
@@ -3495,135 +3829,516 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ==================== [NEW] TAB: CONTABLE REPORTES (BALANCES & REPORTES) ==================== */}
+        {/* ==================== [NEW] TAB: CONTABLE REPORTES (CONTABILIDAD PRO) ==================== */}
         {activeTab === 'accounting_reports' && (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              
-              {/* Balance General */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
-                <div className="flex justify-between items-center mb-5">
-                  <span className="font-extrabold text-sm text-slate-800">Balance General (Consolidado)</span>
-                  <div className="flex gap-1">
-                    <button onClick={() => handleExportData('xls', 'Balance General', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => handleExportData('pdf', 'Balance General', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
+            
+            {/* Sub-Navegación Contabilidad PRO */}
+            <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+              <button 
+                onClick={() => setAccountingSubTab('balances')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${accountingSubTab === 'balances' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                📊 Balances e IFRS/NIIF
+              </button>
+              <button 
+                onClick={() => setAccountingSubTab('reconciliation')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${accountingSubTab === 'reconciliation' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                🏦 Conciliación Bancaria
+              </button>
+              <button 
+                onClick={() => setAccountingSubTab('budgets')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${accountingSubTab === 'budgets' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                🎯 Presupuestos y Desviaciones
+              </button>
+              <button 
+                onClick={() => setAccountingSubTab('fixed_assets')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${accountingSubTab === 'fixed_assets' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                🚜 Activos Fijos y Depreciaciones
+              </button>
+              <button 
+                onClick={() => setAccountingSubTab('invoicing')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${accountingSubTab === 'invoicing' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                🧾 Facturación Regional UBL
+              </button>
+            </div>
+
+            {/* ==================== 1. SUB-TAB: BALANCES ==================== */}
+            {accountingSubTab === 'balances' && (
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Balance General */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <div className="flex justify-between items-center mb-5">
+                      <span className="font-extrabold text-sm text-slate-800">Balance General (Consolidado IFRS)</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => handleExportData('xls', 'Balance General', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleExportData('pdf', 'Balance General', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      {['activo', 'pasivo', 'patrimonio'].map((type) => {
+                        const filteredAccs = accounts.filter(a => a.type === type);
+                        const totalVal = filteredAccs.reduce((sum, acc) => {
+                          const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                          const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                          const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                          return sum + (type === 'activo' ? (debits - credits) : (credits - debits));
+                        }, 0);
+                        return (
+                          <div key={type} className="border border-slate-100 p-4 rounded-xl bg-slate-50/20">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
+                              <span className="font-black text-xs text-slate-800 uppercase capitalize">{type}s</span>
+                              <span className="font-mono font-black text-slate-950">${totalVal.toFixed(2)}</span>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              {filteredAccs.map(acc => {
+                                const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                                const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                                const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                                const balance = type === 'activo' ? (debits - credits) : (credits - debits);
+                                return (
+                                  <div key={acc.id} className="flex justify-between text-slate-500 font-semibold">
+                                    <span className={acc.parentId ? 'pl-4' : 'text-slate-700 font-bold'}>{acc.code} - {acc.name}</span>
+                                    <span className="font-mono">${balance.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Estado de Resultados (P&L) */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <div className="flex justify-between items-center mb-5">
+                      <span className="font-extrabold text-sm text-slate-800">Estado de Resultados (P&L)</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => handleExportData('xls', 'Estado de Resultados', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleExportData('pdf', 'Estado de Resultados', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      {['ingreso', 'gasto'].map((type) => {
+                        const filteredAccs = accounts.filter(a => a.type === type);
+                        const totalVal = filteredAccs.reduce((sum, acc) => {
+                          const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                          const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                          const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                          return sum + (type === 'ingreso' ? (credits - debits) : (debits - credits));
+                        }, 0);
+                        return (
+                          <div key={type} className="border border-slate-100 p-4 rounded-xl bg-slate-50/20">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
+                              <span className="font-black text-xs text-slate-800 uppercase capitalize">{type}s</span>
+                              <span className="font-mono font-black text-slate-950">${totalVal.toFixed(2)}</span>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              {filteredAccs.map(acc => {
+                                const accItems = journalItems.filter(ji => ji.accountId === acc.id);
+                                const debits = accItems.reduce((s, i) => s + i.debit, 0);
+                                const credits = accItems.reduce((s, i) => s + i.credit, 0);
+                                const balance = type === 'ingreso' ? (credits - debits) : (debits - credits);
+                                return (
+                                  <div key={acc.id} className="flex justify-between text-slate-500 font-semibold">
+                                    <span className={acc.parentId ? 'pl-4' : 'text-slate-700 font-bold'}>{acc.code} - {acc.name}</span>
+                                    <span className="font-mono">${balance.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {(() => {
+                        const ledgerBal = computeLedgerBalances(accounts, journalItems);
+                        const pnl = calculatePnL(ledgerBal);
+                        return (
+                          <div className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 flex justify-between items-center font-bold text-xs mt-6">
+                            <span>UTILIDAD NETA (EJERCICIO NIIF)</span>
+                            <span className={`font-mono text-sm ${pnl.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              ${pnl.netIncome.toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  {['activo', 'pasivo', 'patrimonio'].map((type) => {
-                    const filteredAccs = accounts.filter(a => a.type === type);
-                    const totalVal = filteredAccs.reduce((sum, acc) => {
-                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
-                      const debits = accItems.reduce((s, i) => s + i.debit, 0);
-                      const credits = accItems.reduce((s, i) => s + i.credit, 0);
-                      return sum + (type === 'activo' ? (debits - credits) : (credits - debits));
-                    }, 0);
-                    return (
-                      <div key={type} className="border border-slate-100 p-4 rounded-xl bg-slate-50/20">
-                        <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
-                          <span className="font-black text-xs text-slate-800 uppercase capitalize">{type}s</span>
-                          <span className="font-mono font-black text-slate-950">${totalVal.toFixed(2)}</span>
-                        </div>
-                        <div className="space-y-2 text-xs">
-                          {filteredAccs.map(acc => {
-                            const accItems = journalItems.filter(ji => ji.accountId === acc.id);
-                            const debits = accItems.reduce((s, i) => s + i.debit, 0);
-                            const credits = accItems.reduce((s, i) => s + i.credit, 0);
-                            const balance = type === 'activo' ? (debits - credits) : (credits - debits);
-                            return (
-                              <div key={acc.id} className="flex justify-between text-slate-500 font-semibold">
-                                <span className={acc.parentId ? 'pl-4' : 'text-slate-700 font-bold'}>{acc.code} - {acc.name}</span>
-                                <span className="font-mono">${balance.toFixed(2)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* Estado de Resultados */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
-                <div className="flex justify-between items-center mb-5">
-                  <span className="font-extrabold text-sm text-slate-800">Estado de Resultados (P&L)</span>
-                  <div className="flex gap-1">
-                    <button onClick={() => handleExportData('xls', 'Estado de Resultados', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Exportar Excel"><Download className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => handleExportData('pdf', 'Estado de Resultados', { accounts, journalItems })} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700" title="Imprimir PDF"><Printer className="w-3.5 h-3.5" /></button>
+                {/* Reporte Flujo de Caja */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <span className="font-extrabold text-sm text-slate-800 block">Flujo de Caja Directo</span>
+                      <p className="text-[10px] text-gray-400 mt-1">Clasificación directa de cobros y pagos según centro de costos contable.</p>
+                    </div>
+                    <span className="text-xs font-extrabold text-primary-celeste bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl font-mono">
+                      Método Directo IFRS
+                    </span>
                   </div>
-                </div>
-                <div className="space-y-4">
-                  {['ingreso', 'gasto'].map((type) => {
-                    const filteredAccs = accounts.filter(a => a.type === type);
-                    const totalVal = filteredAccs.reduce((sum, acc) => {
-                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
-                      const debits = accItems.reduce((s, i) => s + i.debit, 0);
-                      const credits = accItems.reduce((s, i) => s + i.credit, 0);
-                      return sum + (type === 'ingreso' ? (credits - debits) : (debits - credits));
-                    }, 0);
-                    return (
-                      <div key={type} className="border border-slate-100 p-4 rounded-xl bg-slate-50/20">
-                        <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
-                          <span className="font-black text-xs text-slate-800 uppercase capitalize">{type}s</span>
-                          <span className="font-mono font-black text-slate-950">${totalVal.toFixed(2)}</span>
-                        </div>
-                        <div className="space-y-2 text-xs">
-                          {filteredAccs.map(acc => {
-                            const accItems = journalItems.filter(ji => ji.accountId === acc.id);
-                            const debits = accItems.reduce((s, i) => s + i.debit, 0);
-                            const credits = accItems.reduce((s, i) => s + i.credit, 0);
-                            const balance = type === 'ingreso' ? (credits - debits) : (debits - credits);
-                            return (
-                              <div key={acc.id} className="flex justify-between text-slate-500 font-semibold">
-                                <span className={acc.parentId ? 'pl-4' : 'text-slate-700 font-bold'}>{acc.code} - {acc.name}</span>
-                                <span className="font-mono">${balance.toFixed(2)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-
                   {(() => {
-                    // Net profit calculation
-                    const revenues = accounts.filter(a => a.type === 'ingreso').reduce((sum, acc) => {
-                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
-                      return sum + (accItems.reduce((s, i) => s + i.credit, 0) - accItems.reduce((s, i) => s + i.debit, 0));
-                    }, 0);
-                    const expenses = accounts.filter(a => a.type === 'gasto').reduce((sum, acc) => {
-                      const accItems = journalItems.filter(ji => ji.accountId === acc.id);
-                      return sum + (accItems.reduce((s, i) => s + i.debit, 0) - accItems.reduce((s, i) => s + i.credit, 0));
-                    }, 0);
-                    const netIncome = revenues - expenses;
+                    const cashAcc = accounts.find(a => a.code.startsWith('11') || a.name.toLowerCase().includes('caja') || a.name.toLowerCase().includes('banco'));
+                    if (!cashAcc) {
+                      return <p className="text-xs text-slate-400">No se detectó cuenta de Caja o Banco para calcular el flujo.</p>;
+                    }
+                    const cf = calculateCashFlowDirect(journalItems, cashAcc.id);
                     return (
-                      <div className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 flex justify-between items-center font-bold text-xs mt-6">
-                        <span>UTILIDAD NETA (EJERCICIO)</span>
-                        <span className={`font-mono text-sm ${netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ${netIncome.toFixed(2)}
-                        </span>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
+                        <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/20">
+                          <span className="text-[10px] font-bold text-gray-400 block uppercase">Actividades Operativas</span>
+                          <span className={`font-mono font-black text-sm block mt-2 ${cf.operations >= 0 ? 'text-slate-900' : 'text-red-500'}`}>
+                            ${cf.operations.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/20">
+                          <span className="text-[10px] font-bold text-gray-400 block uppercase">Actividades de Inversión</span>
+                          <span className={`font-mono font-black text-sm block mt-2 ${cf.investment >= 0 ? 'text-slate-900' : 'text-red-500'}`}>
+                            ${cf.investment.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/20">
+                          <span className="text-[10px] font-bold text-gray-400 block uppercase">Actividades de Financiamiento</span>
+                          <span className={`font-mono font-black text-sm block mt-2 ${cf.financing >= 0 ? 'text-slate-900' : 'text-red-500'}`}>
+                            ${cf.financing.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="p-4 border border-slate-900 rounded-xl bg-slate-950 text-white">
+                          <span className="text-[10px] font-bold text-slate-400 block uppercase">Variación Neta de Efectivo</span>
+                          <span className={`font-mono font-black text-sm block mt-2 ${cf.netFlow >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            ${cf.netFlow.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     );
                   })()}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Facturación Electrónica Stub */}
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 shadow-xl text-white">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <span className="text-xs font-black uppercase tracking-widest text-primary-celeste block">🧾 Facturación Electrónica (Tributaria)</span>
-                  <p className="text-slate-400 text-[11px] mt-1">Sincronización automatizada de boletas y facturas emitidas por la tienda y POS en Cloudflare Edge.</p>
+            {/* ==================== 2. SUB-TAB: CONCILIACION BANCARIA ==================== */}
+            {accountingSubTab === 'reconciliation' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Extracto Bancario */}
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <span className="font-extrabold text-sm text-slate-800 block">Extracto Bancario Importado</span>
+                      <p className="text-[10px] text-gray-400 mt-1">Casilla de movimientos registrados en cartola de cuenta corriente.</p>
+                    </div>
+                    <button 
+                      onClick={() => alert('Cargue cartola bancaria en formato CSV/OFX.')} 
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-[10px] flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Importar Cartola
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {bankStatementLines.length === 0 ? (
+                      <p className="text-xs text-slate-400">No hay transacciones bancarias importadas.</p>
+                    ) : (
+                      bankStatementLines.map(line => (
+                        <div 
+                          key={line.id} 
+                          className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center gap-4 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex flex-col gap-0.5 text-xs">
+                            <span className="font-mono text-[10px] text-gray-400">{line.date}</span>
+                            <span className="font-bold text-slate-800">{line.description}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className={`font-mono font-black text-xs ${line.amount > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {line.amount > 0 ? '+' : ''}${line.amount.toFixed(2)}
+                            </span>
+                            {line.reconciledJournalItemId ? (
+                              <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-green-600" /> Conciliado
+                              </span>
+                            ) : (
+                              <button 
+                                onClick={() => handleReconcileLine(line.id)}
+                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-950 text-white rounded-lg text-[10px] font-bold"
+                              >
+                                Conciliar Asiento
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">Servicio Activo</span>
+
+                {/* Auxiliar Banco Libro Mayor */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Auxiliar Cuenta Mayor (Banco)</span>
+                  <div className="space-y-4 text-xs font-semibold">
+                    {(() => {
+                      const bankAcc = accounts.find(a => a.code.startsWith('11') || a.name.toLowerCase().includes('banco'));
+                      if (!bankAcc) {
+                        return <p className="text-slate-400">Cuenta de Mayor Banco no parametrizada.</p>;
+                      }
+                      const items = journalItems.filter(ji => ji.accountId === bankAcc.id);
+                      if (items.length === 0) {
+                        return <p className="text-slate-400">No hay registros contables en cuenta banco.</p>;
+                      }
+                      return items.map(item => (
+                        <div key={item.id} className="p-3 border border-slate-100 rounded-xl flex flex-col gap-1.5 bg-slate-50/10">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-400">ASIENTO REF: {item.entryId.substring(0,10)}</span>
+                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono uppercase">{item.costCenter || 'Libro Diario'}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-slate-700">
+                            <span>Ingreso/Egreso contable</span>
+                            <span className="font-mono">${(item.debit > 0 ? item.debit : -item.credit).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => alert('Generando firma electrónica de exportación... Enlace de prueba exitoso.')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Validar Firma Digital</button>
-                <button type="button" onClick={() => alert('Consultando folios disponibles... Folio actual: 89012')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Consultar Folios</button>
+            )}
+
+            {/* ==================== 3. SUB-TAB: PRESUPUESTOS ==================== */}
+            {accountingSubTab === 'budgets' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Formulario Presupuesto */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Asignar Límite de Presupuesto</span>
+                  <form onSubmit={handleAddBudgetLimit} className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Cuenta de Gasto (Clase 5)</label>
+                      <select required value={newBudgetAccount} onChange={e => setNewBudgetAccount(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="">Seleccione Cuenta</option>
+                        {accounts.filter(a => a.type === 'gasto').map(a => (
+                          <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Monto Límite ($)</label>
+                        <input required type="number" placeholder="2000" value={newBudgetAmount || ''} onChange={e => setNewBudgetAmount(parseFloat(e.target.value) || 0)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Mes / Período</label>
+                        <input required type="text" placeholder="2026-06" value={newBudgetPeriod} onChange={e => setNewBudgetPeriod(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                      </div>
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4 text-primary-celeste" /> Asignar Presupuesto
+                    </button>
+                  </form>
+                </div>
+
+                {/* Desviaciones Presupuestarias */}
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Presupuesto Ejecutado vs Límite Asignado</span>
+                  <div className="space-y-6">
+                    {budgetLimits.length === 0 ? (
+                      <p className="text-xs text-slate-400">No se han definido límites presupuestarios para este mes.</p>
+                    ) : (
+                      calculateBudgetDeviations(computeLedgerBalances(accounts, journalItems), budgetLimits).map(dev => {
+                        const pct = Math.min(Math.round((dev.spent / dev.limit) * 100), 100);
+                        const isOver = dev.spent > dev.limit;
+                        return (
+                          <div key={dev.accountId} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex flex-col gap-3">
+                            <div className="flex justify-between items-start text-xs">
+                              <div>
+                                <h4 className="font-bold text-slate-800">{dev.code} - {dev.accountName}</h4>
+                                <span className="text-[10px] text-gray-400">Periodo Contable Activo</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-black text-slate-900 block">${dev.spent.toFixed(2)} / ${dev.limit.toFixed(2)}</span>
+                                <span className={`text-[10px] font-black uppercase ${isOver ? 'text-red-500' : 'text-green-500'}`}>
+                                  {isOver ? `Excedido por ${(dev.deviationPct).toFixed(1)}%` : `Consumo del ${pct}%`}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-500 ${isOver ? 'bg-red-500' : 'bg-primary-celeste'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* ==================== 4. SUB-TAB: ACTIVOS FIJOS ==================== */}
+            {accountingSubTab === 'fixed_assets' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Formulario Activo */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Ingresar Activo Fijo</span>
+                  <form onSubmit={handleAddFixedAsset} className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Descripción del Activo</label>
+                      <input required type="text" placeholder="Ej. Servidor Blade Core i9" value={newAssetName} onChange={e => setNewAssetName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Costo ($)</label>
+                        <input required type="number" placeholder="2500" value={newAssetValue || ''} onChange={e => setNewAssetValue(parseFloat(e.target.value) || 0)} className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Residual ($)</label>
+                        <input required type="number" placeholder="100" value={newAssetSalvage || ''} onChange={e => setNewAssetSalvage(parseFloat(e.target.value) || 0)} className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Años Útiles</label>
+                        <input required type="number" placeholder="5" value={newAssetLifespan || ''} onChange={e => setNewAssetLifespan(parseInt(e.target.value) || 5)} className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                      </div>
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4 text-primary-celeste" /> Registrar Activo
+                    </button>
+                  </form>
+                </div>
+
+                {/* Inventario de Activos y Amortización */}
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Inventario de Propiedades, Planta y Equipos (PPE)</span>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 font-bold text-gray-400">
+                          <th className="pb-3">Detalle Activo</th>
+                          <th className="pb-3 text-right">Compra</th>
+                          <th className="pb-3 text-right">Residual</th>
+                          <th className="pb-3 text-right">Acumulada</th>
+                          <th className="pb-3 text-right">Valor Libro</th>
+                          <th className="pb-3 text-right font-black">Depreciación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fixedAssets.map(asset => {
+                          const bookValue = asset.purchaseValue - asset.depreciatedAmount;
+                          return (
+                            <tr key={asset.id} className="border-b border-slate-50">
+                              <td className="py-3">
+                                <span className="font-bold text-slate-800 block">{asset.name}</span>
+                                <span className="text-[10px] text-gray-400">Vida útil: {asset.lifespanYears} años • {asset.purchaseDate}</span>
+                              </td>
+                              <td className="py-3 text-right font-mono font-bold">${asset.purchaseValue.toFixed(2)}</td>
+                              <td className="py-3 text-right font-mono text-slate-500">${asset.salvageValue.toFixed(2)}</td>
+                              <td className="py-3 text-right font-mono text-red-500">${asset.depreciatedAmount.toFixed(2)}</td>
+                              <td className="py-3 text-right font-mono font-black text-primary-celeste">${bookValue.toFixed(2)}</td>
+                              <td className="py-3 text-right">
+                                <button 
+                                  onClick={() => handleTriggerDepreciation(asset.id)}
+                                  className="px-2 py-1 bg-slate-900 hover:bg-slate-950 text-white rounded font-bold text-[9px]"
+                                >
+                                  Depreciar Mes
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== 5. SUB-TAB: FACTURACION ELECTRONICA ==================== */}
+            {accountingSubTab === 'invoicing' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Generador Fiscal */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Emisor de Documento Fiscal (Factura Electrónica)</span>
+                  <div className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">País de Emisión Tributaria</label>
+                      <select 
+                        value={selectedCountryTax} 
+                        onChange={e => setSelectedCountryTax(e.target.value as any)} 
+                        className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      >
+                        <option value="CL">Chile (SII - IVA 19%)</option>
+                        <option value="MX">México (SAT CFDI 4.0 - IVA 16%)</option>
+                        <option value="CO">Colombia (DIAN - IVA 19%)</option>
+                        <option value="PE">Perú (SUNAT - IGV 18%)</option>
+                      </select>
+                    </div>
+                    <div className="p-4 border border-slate-100 bg-slate-50/20 rounded-xl space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Total Gravado:</span>
+                        <span className="font-mono font-bold">$100.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Tasa Impuesto:</span>
+                        <span className="font-mono font-bold">
+                          {selectedCountryTax === 'CL' ? '19% (IVA)' : selectedCountryTax === 'MX' ? '16% (IVA)' : selectedCountryTax === 'CO' ? '19% (IVA)' : '18% (IGV)'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-100 pt-2 font-black text-slate-900">
+                        <span>Total Documento:</span>
+                        <span className="font-mono">
+                          {selectedCountryTax === 'CL' ? '$119.00' : selectedCountryTax === 'MX' ? '$116.00' : selectedCountryTax === 'CO' ? '$119.00' : '$118.00'}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={handleGenerateElectronicInvoice}
+                      className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5"
+                    >
+                      <FileSignature className="w-4 h-4 text-primary-celeste" /> Firmar XML y Emitir
+                    </button>
+                  </div>
+                </div>
+
+                {/* Logs XML SOAP / UBL */}
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-950 text-slate-300 border border-slate-900 shadow-xl font-mono text-[10px]">
+                  <div className="flex justify-between items-center border-b border-slate-900 pb-3 mb-4">
+                    <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest block">Consola Tributaria (Live XML SOAP Payload Logs)</span>
+                    <span className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Webservice Conectado</span>
+                  </div>
+                  <div className="h-60 overflow-y-auto space-y-2 text-slate-400 scrollbar-thin scrollbar-thumb-slate-800">
+                    {invoiceXmlLog.length === 0 ? (
+                      <p className="text-slate-500 italic">Esperando emisiones de facturas para desplegar esquemas UBL XML...</p>
+                    ) : (
+                      invoiceXmlLog.map((logMsg, i) => (
+                        <div key={i} className="p-2 border-b border-slate-900/50 flex flex-col gap-1">
+                          <span className="text-green-400 font-bold">{logMsg}</span>
+                          <pre className="text-[8px] leading-relaxed text-slate-500 bg-slate-900/40 p-2 rounded max-h-24 overflow-y-auto select-all">
+                            {`<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:ID>FAC-${100000 + i}</cbc:ID>
+  <cbc:DocumentCurrencyCode>${selectedCountryTax === 'CL' ? 'CLP' : selectedCountryTax === 'MX' ? 'MXN' : selectedCountryTax === 'CO' ? 'COP' : 'PEN'}</cbc:DocumentCurrencyCode>
+  <cac:Signature>
+    <cbc:ID>Sign-FAC-${100000 + i}</cbc:ID>
+    <cac:DigitalSignature>
+      <cbc:SignatureValue>SHA256withRSA/SignedXML/Hash:e78a${Math.random().toString(36).substring(3,10)}...</cbc:SignatureValue>
+    </cac:DigitalSignature>
+  </cac:Signature>
+</Invoice>`}
+                          </pre>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 

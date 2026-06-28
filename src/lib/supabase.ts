@@ -296,6 +296,42 @@ export interface WhiteLabelSettings {
   invoiceFooter?: string;
 }
 
+export interface FixedAsset {
+  id: string;
+  tenantId: string;
+  name: string;
+  purchaseValue: number;
+  salvageValue: number;
+  purchaseDate: string;
+  lifespanYears: number;
+  depreciatedAmount: number;
+}
+
+export interface BudgetLimit {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  amount: number;
+  period: string;
+}
+
+export interface BankStatementLine {
+  id: string;
+  tenantId: string;
+  date: string;
+  description: string;
+  amount: number;
+  reconciledJournalItemId?: string;
+}
+
+export interface ExchangeRate {
+  id: string;
+  tenantId: string;
+  currencyCode: string;
+  rate: number;
+  date: string;
+}
+
 export interface ResellerPartner {
   id: string;
   name: string;
@@ -1303,6 +1339,62 @@ class SupabaseMock {
     const filtered = all.filter((e: any) => e.tenantId !== tenantId);
     this.setStorage('mock_employees', [...filtered, ...employees]);
     syncTableToSupabase('hr_employees', employees);
+  }
+
+  getFixedAssets(tenantId: string): FixedAsset[] {
+    const all = this.getStorage('mock_fixed_assets', [
+      { id: 'asset-1', tenantId, name: 'Servidor Dell R740', purchaseValue: 5000.00, salvageValue: 500.00, purchaseDate: '2026-01-10', lifespanYears: 5, depreciatedAmount: 0.00 },
+      { id: 'asset-2', tenantId, name: 'Escritorios Gerenciales (3)', purchaseValue: 1200.00, salvageValue: 100.00, purchaseDate: '2026-02-15', lifespanYears: 10, depreciatedAmount: 0.00 }
+    ]);
+    return all.filter((a: any) => a.tenantId === tenantId);
+  }
+
+  saveFixedAssets(tenantId: string, assets: FixedAsset[]) {
+    const all = this.getStorage('mock_fixed_assets', []);
+    const filtered = all.filter((a: any) => a.tenantId !== tenantId);
+    this.setStorage('mock_fixed_assets', [...filtered, ...assets]);
+  }
+
+  getBudgetLimits(tenantId: string): BudgetLimit[] {
+    const all = this.getStorage('mock_budget_limits', [
+      { id: 'bdg-1', tenantId, accountId: 'acc-gasto-default-1', amount: 1500.00, period: '2026-06' }
+    ]);
+    return all.filter((b: any) => b.tenantId === tenantId);
+  }
+
+  saveBudgetLimits(tenantId: string, budgets: BudgetLimit[]) {
+    const all = this.getStorage('mock_budget_limits', []);
+    const filtered = all.filter((b: any) => b.tenantId !== tenantId);
+    this.setStorage('mock_budget_limits', [...filtered, ...budgets]);
+  }
+
+  getBankStatementLines(tenantId: string): BankStatementLine[] {
+    const all = this.getStorage('mock_bank_statements', [
+      { id: 'bst-1', tenantId, date: '2026-06-25', description: 'ABONO TRANSF RECIBIDA CLIENTE', amount: 350.00 },
+      { id: 'bst-2', tenantId, date: '2026-06-26', description: 'CARGO COMISION MANTENCION', amount: -15.00 }
+    ]);
+    return all.filter((l: any) => l.tenantId === tenantId);
+  }
+
+  saveBankStatementLines(tenantId: string, lines: BankStatementLine[]) {
+    const all = this.getStorage('mock_bank_statements', []);
+    const filtered = all.filter((l: any) => l.tenantId !== tenantId);
+    this.setStorage('mock_bank_statements', [...filtered, ...lines]);
+  }
+
+  getExchangeRates(tenantId: string): ExchangeRate[] {
+    const all = this.getStorage('mock_exchange_rates', [
+      { id: 'rate-1', tenantId, currencyCode: 'EUR', rate: 1.08, date: '2026-06-27' },
+      { id: 'rate-2', tenantId, currencyCode: 'CLP', rate: 940.00, date: '2026-06-27' },
+      { id: 'rate-3', tenantId, currencyCode: 'MXN', rate: 18.20, date: '2026-06-27' }
+    ]);
+    return all.filter((r: any) => r.tenantId === tenantId);
+  }
+
+  saveExchangeRates(tenantId: string, rates: ExchangeRate[]) {
+    const all = this.getStorage('mock_exchange_rates', []);
+    const filtered = all.filter((r: any) => r.tenantId !== tenantId);
+    this.setStorage('mock_exchange_rates', [...filtered, ...rates]);
   }
 }
 
