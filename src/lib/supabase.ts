@@ -332,6 +332,57 @@ export interface ExchangeRate {
   date: string;
 }
 
+export interface CrmContact {
+  id: string;
+  tenantId: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  companyId?: string;
+}
+
+export interface CrmCompany {
+  id: string;
+  tenantId: string;
+  name: string;
+  industry: string;
+  size: string;
+  address?: string;
+}
+
+export interface CrmActivity {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  title: string;
+  type: 'call' | 'meeting' | 'email' | 'task';
+  date: string;
+  notes?: string;
+  completed: boolean;
+}
+
+export interface CrmQuote {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  date: string;
+  total: number;
+  itemsJson: string; // List of quoted products
+  validUntil: string;
+}
+
+export interface CrmCampaign {
+  id: string;
+  tenantId: string;
+  name: string;
+  subject: string;
+  sentCount: number;
+  opensCount: number;
+  clicksCount: number;
+  status: 'draft' | 'sent';
+}
+
 export interface ResellerPartner {
   id: string;
   name: string;
@@ -1395,6 +1446,75 @@ class SupabaseMock {
     const all = this.getStorage('mock_exchange_rates', []);
     const filtered = all.filter((r: any) => r.tenantId !== tenantId);
     this.setStorage('mock_exchange_rates', [...filtered, ...rates]);
+  }
+
+  getCrmContacts(tenantId: string): CrmContact[] {
+    const all = this.getStorage('mock_crm_contacts', [
+      { id: 'cnt-1', tenantId, name: 'Juan Pérez', email: 'juan@acme.com', phone: '+56911111111', role: 'Gerente Compras', companyId: 'comp-1' },
+      { id: 'cnt-2', tenantId, name: 'María Gómez', email: 'maria@globex.com', phone: '+56922222222', role: 'CTO', companyId: 'comp-2' }
+    ]);
+    return all.filter((c: any) => c.tenantId === tenantId);
+  }
+
+  saveCrmContacts(tenantId: string, contacts: CrmContact[]) {
+    const all = this.getStorage('mock_crm_contacts', []);
+    const filtered = all.filter((c: any) => c.tenantId !== tenantId);
+    this.setStorage('mock_crm_contacts', [...filtered, ...contacts]);
+  }
+
+  getCrmCompanies(tenantId: string): CrmCompany[] {
+    const all = this.getStorage('mock_crm_companies', [
+      { id: 'comp-1', tenantId, name: 'Acme Corp', industry: 'Tecnología', size: '10-50 empleados', address: 'Av. Las Condes 1234' },
+      { id: 'comp-2', tenantId, name: 'Globex Inc', industry: 'Manufactura', size: '100-500 empleados', address: 'Panamericana Norte 567' }
+    ]);
+    return all.filter((c: any) => c.tenantId === tenantId);
+  }
+
+  saveCrmCompanies(tenantId: string, companies: CrmCompany[]) {
+    const all = this.getStorage('mock_crm_companies', []);
+    const filtered = all.filter((c: any) => c.tenantId !== tenantId);
+    this.setStorage('mock_crm_companies', [...filtered, ...companies]);
+  }
+
+  getCrmActivities(tenantId: string): CrmActivity[] {
+    const all = this.getStorage('mock_crm_activities', [
+      { id: 'act-1', tenantId, leadId: 'lead-1', title: 'Llamada de presentación', type: 'call' as const, date: '2026-06-28', notes: 'Conversar sobre cotización de hardware.', completed: false },
+      { id: 'act-2', tenantId, leadId: 'lead-2', title: 'Reunión de demostración', type: 'meeting' as const, date: '2026-06-29', notes: 'Presentar demo de LMS y RRHH.', completed: false }
+    ]);
+    return all.filter((a: any) => a.tenantId === tenantId);
+  }
+
+  saveCrmActivities(tenantId: string, activities: CrmActivity[]) {
+    const all = this.getStorage('mock_crm_activities', []);
+    const filtered = all.filter((a: any) => a.tenantId !== tenantId);
+    this.setStorage('mock_crm_activities', [...filtered, ...activities]);
+  }
+
+  getCrmQuotes(tenantId: string): CrmQuote[] {
+    const all = this.getStorage('mock_crm_quotes', [
+      { id: 'qte-1', tenantId, leadId: 'lead-1', date: '2026-06-27', total: 1500.00, itemsJson: JSON.stringify([{ id: 'p-1', name: 'Licencias LMS', price: 150, qty: 10 }]), validUntil: '2026-07-27' }
+    ]);
+    return all.filter((q: any) => q.tenantId === tenantId);
+  }
+
+  saveCrmQuotes(tenantId: string, quotes: CrmQuote[]) {
+    const all = this.getStorage('mock_crm_quotes', []);
+    const filtered = all.filter((q: any) => q.tenantId !== tenantId);
+    this.setStorage('mock_crm_quotes', [...filtered, ...quotes]);
+  }
+
+  getCrmCampaigns(tenantId: string): CrmCampaign[] {
+    const all = this.getStorage('mock_crm_campaigns', [
+      { id: 'cmp-1', tenantId, name: 'Campaña Cyber Monday', subject: 'Descuentos exclusivos ERP', sentCount: 1500, opensCount: 450, clicksCount: 120, status: 'sent' as const },
+      { id: 'cmp-2', tenantId, name: 'Newsletter Junio', subject: 'Novedades de SASWEBS', sentCount: 0, opensCount: 0, clicksCount: 0, status: 'draft' as const }
+    ]);
+    return all.filter((c: any) => c.tenantId === tenantId);
+  }
+
+  saveCrmCampaigns(tenantId: string, campaigns: CrmCampaign[]) {
+    const all = this.getStorage('mock_crm_campaigns', []);
+    const filtered = all.filter((c: any) => c.tenantId !== tenantId);
+    this.setStorage('mock_crm_campaigns', [...filtered, ...campaigns]);
   }
 }
 

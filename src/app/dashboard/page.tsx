@@ -19,6 +19,12 @@ import {
   calculateCashFlowDirect,
   computeLedgerBalances
 } from '@/modules/accounting';
+import {
+  calculateWeightedForecast,
+  calculateConversionRate,
+  calculateCampaignMetrics,
+  groupLeadsByStage
+} from '@/modules/crm';
 
 export default function DashboardPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -229,6 +235,44 @@ export default function DashboardPage() {
   const [exchangeRates, setExchangeRates] = useState<any[]>([]);
   const [invoiceXmlLog, setInvoiceXmlLog] = useState<string[]>([]);
 
+  // ==================== CRM PRO STATES ====================
+  const [crmSubTab, setCrmSubTab] = useState<'pipeline' | 'directory' | 'activities' | 'quotes' | 'forecast' | 'campaigns'>('pipeline');
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+
+  // Contact Form
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactRole, setNewContactRole] = useState('');
+  const [newContactCompanyId, setNewContactCompanyId] = useState('');
+
+  // Company Form
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [newCompanyIndustry, setNewCompanyIndustry] = useState('Tecnología');
+  const [newCompanySize, setNewCompanySize] = useState('10-50 empleados');
+  const [newCompanyAddress, setNewCompanyAddress] = useState('');
+
+  // Activity Form
+  const [newActivityLeadId, setNewActivityLeadId] = useState('');
+  const [newActivityTitle, setNewActivityTitle] = useState('');
+  const [newActivityType, setNewActivityType] = useState<'call' | 'meeting' | 'email' | 'task'>('call');
+  const [newActivityDate, setNewActivityDate] = useState('');
+  const [newActivityNotes, setNewActivityNotes] = useState('');
+
+  // Quote Form
+  const [newQuoteLeadId, setNewQuoteLeadId] = useState('');
+  const [newQuoteProductId, setNewQuoteProductId] = useState('');
+  const [newQuoteQty, setNewQuoteQty] = useState(1);
+  const [newQuoteValidUntil, setNewQuoteValidUntil] = useState('');
+
+  // Campaign Form
+  const [newCampaignName, setNewCampaignName] = useState('');
+  const [newCampaignSubject, setNewCampaignSubject] = useState('');
+
   // Fixed Asset Form
   const [newAssetName, setNewAssetName] = useState('');
   const [newAssetValue, setNewAssetValue] = useState(0);
@@ -307,6 +351,13 @@ export default function DashboardPage() {
     setBudgetLimits(dbAdapter.getBudgetLimits(active.id));
     setBankStatementLines(dbAdapter.getBankStatementLines(active.id));
     setExchangeRates(dbAdapter.getExchangeRates(active.id));
+
+    // Load CRM PRO data
+    setContacts(dbAdapter.getCrmContacts(active.id));
+    setCompanies(dbAdapter.getCrmCompanies(active.id));
+    setActivities(dbAdapter.getCrmActivities(active.id));
+    setQuotes(dbAdapter.getCrmQuotes(active.id));
+    setCampaigns(dbAdapter.getCrmCampaigns(active.id));
   };
 
   useEffect(() => {
@@ -979,6 +1030,165 @@ export default function DashboardPage() {
     setCourseDesc('');
     setCoursePrice('');
     setCourseInstructor('');
+  };
+
+  // ==================== CRM PRO ACTIONS ====================
+  const handleAddCrmContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.CRM_CONTACTS_WRITE)) return;
+    if (!tenant || !newContactName || !newContactEmail) return;
+
+    const newContact = {
+      id: 'cnt-' + Date.now(),
+      tenantId: tenant.id,
+      name: newContactName,
+      email: newContactEmail,
+      phone: newContactPhone,
+      role: newContactRole,
+      companyId: newContactCompanyId || undefined
+    };
+
+    const list = [...contacts, newContact];
+    dbAdapter.saveCrmContacts(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Registrar Contacto B2B', `Contacto: ${newContactName}`);
+
+    reloadAllData();
+    setNewContactName('');
+    setNewContactEmail('');
+    setNewContactPhone('');
+    setNewContactRole('');
+    setNewContactCompanyId('');
+  };
+
+  const handleAddCrmCompany = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.CRM_CONTACTS_WRITE)) return;
+    if (!tenant || !newCompanyName) return;
+
+    const newCompany = {
+      id: 'comp-' + Date.now(),
+      tenantId: tenant.id,
+      name: newCompanyName,
+      industry: newCompanyIndustry,
+      size: newCompanySize,
+      address: newCompanyAddress || undefined
+    };
+
+    const list = [...companies, newCompany];
+    dbAdapter.saveCrmCompanies(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Registrar Empresa B2B', `Empresa: ${newCompanyName}`);
+
+    reloadAllData();
+    setNewCompanyName('');
+    setNewCompanyAddress('');
+  };
+
+  const handleAddCrmActivity = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.CRM_PIPELINE_MANAGE)) return;
+    if (!tenant || !newActivityLeadId || !newActivityTitle || !newActivityDate) return;
+
+    const newAct = {
+      id: 'act-' + Date.now(),
+      tenantId: tenant.id,
+      leadId: newActivityLeadId,
+      title: newActivityTitle,
+      type: newActivityType,
+      date: newActivityDate,
+      notes: newActivityNotes || undefined,
+      completed: false
+    };
+
+    const list = [...activities, newAct];
+    dbAdapter.saveCrmActivities(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Planificar Actividad CRM', `Actividad: ${newActivityTitle}`);
+
+    reloadAllData();
+    setNewActivityLeadId('');
+    setNewActivityTitle('');
+    setNewActivityNotes('');
+    setNewActivityDate('');
+  };
+
+  const handleAddCrmQuote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.CRM_PIPELINE_MANAGE)) return;
+    if (!tenant || !newQuoteLeadId || !newQuoteProductId || !newQuoteValidUntil) return;
+
+    const prod = products.find(p => p.id === newQuoteProductId);
+    if (!prod) return;
+
+    const items = [{ id: prod.id, name: prod.name, price: prod.price, qty: newQuoteQty }];
+    const totalVal = prod.price * newQuoteQty;
+
+    const newQ = {
+      id: 'qte-' + Date.now(),
+      tenantId: tenant.id,
+      leadId: newQuoteLeadId,
+      date: new Date().toISOString().split('T')[0],
+      total: totalVal,
+      itemsJson: JSON.stringify(items),
+      validUntil: newQuoteValidUntil
+    };
+
+    const list = [...quotes, newQ];
+    dbAdapter.saveCrmQuotes(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Generar Cotización CRM', `Cotización para Lead: ${newQuoteLeadId} por $${totalVal}`);
+
+    reloadAllData();
+    setNewQuoteLeadId('');
+    setNewQuoteProductId('');
+    setNewQuoteQty(1);
+    setNewQuoteValidUntil('');
+  };
+
+  const handleAddCrmCampaign = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyPermission(PERMISSIONS.CRM_PIPELINE_MANAGE)) return;
+    if (!tenant || !newCampaignName || !newCampaignSubject) return;
+
+    const newCamp = {
+      id: 'cmp-' + Date.now(),
+      tenantId: tenant.id,
+      name: newCampaignName,
+      subject: newCampaignSubject,
+      sentCount: 0,
+      opensCount: 0,
+      clicksCount: 0,
+      status: 'draft' as const
+    };
+
+    const list = [...campaigns, newCamp];
+    dbAdapter.saveCrmCampaigns(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Crear Campaña Marketing', `Campaña: ${newCampaignName}`);
+
+    reloadAllData();
+    setNewCampaignName('');
+    setNewCampaignSubject('');
+  };
+
+  const handleSendCrmCampaign = (campaignId: string) => {
+    if (!verifyPermission(PERMISSIONS.CRM_PIPELINE_MANAGE)) return;
+    if (!tenant) return;
+
+    const list = campaigns.map(c => {
+      if (c.id === campaignId) {
+        return {
+          ...c,
+          status: 'sent' as const,
+          sentCount: 1200,
+          opensCount: Math.floor(300 + Math.random() * 200),
+          clicksCount: Math.floor(50 + Math.random() * 80)
+        };
+      }
+      return c;
+    });
+
+    dbAdapter.saveCrmCampaigns(tenant.id, list);
+    dbAdapter.addAuditLog(tenant.id, `${activeRole}@tenant.com`, 'Lanzar Campaña Marketing', `ID Campaña: ${campaignId}`);
+
+    reloadAllData();
+    alert('Campaña enviada a los destinatarios. Estadísticas simuladas generadas con éxito.');
   };
 
   // ==================== CONTABILIDAD PRO ACTIONS ====================
@@ -4562,108 +4772,644 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ==================== [NEW] TAB: CRM & PIPELINE ==================== */}
         {activeTab === 'crm_pipeline' && (
           <div className="space-y-8 animate-fade-in">
-            {/* Metric widgets */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
-                <span className="text-[10px] font-black uppercase text-slate-400">Total Prospectos</span>
-                <span className="text-2xl font-black text-slate-900 mt-2">{leads.length}</span>
-              </div>
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
-                <span className="text-[10px] font-black uppercase text-slate-400">Valor del Embudo (Pipeline)</span>
-                <span className="text-2xl font-black text-primary-celeste mt-2 font-mono">
-                  ${leads.reduce((sum, l) => sum + (l.value || 0), 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
-                <span className="text-[10px] font-black uppercase text-slate-400">Tratos Ganados</span>
-                <span className="text-2xl font-black text-green-600 mt-2">
-                  {leads.filter(l => l.stage === 'won').length}
-                </span>
-              </div>
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
-                <span className="text-[10px] font-black uppercase text-slate-400">Tratos Perdidos</span>
-                <span className="text-2xl font-black text-red-500 mt-2">
-                  {leads.filter(l => l.stage === 'lost').length}
-                </span>
-              </div>
+            
+            {/* Sub-Navegación CRM PRO */}
+            <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+              <button 
+                onClick={() => setCrmSubTab('pipeline')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'pipeline' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                🎯 Embudo de Ventas (Pipeline)
+              </button>
+              <button 
+                onClick={() => setCrmSubTab('directory')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'directory' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                👥 Directorio B2B (Contactos / Empresas)
+              </button>
+              <button 
+                onClick={() => setCrmSubTab('activities')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'activities' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                📅 Actividades y Agenda
+              </button>
+              <button 
+                onClick={() => setCrmSubTab('quotes')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'quotes' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                📄 Generador de Cotizaciones
+              </button>
+              <button 
+                onClick={() => setCrmSubTab('forecast')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'forecast' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                📈 Sales Forecast & Forecast
+              </button>
+              <button 
+                onClick={() => setCrmSubTab('campaigns')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'campaigns' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                📧 Campañas de Email Marketing
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Form to add lead */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
-                <span className="font-extrabold text-sm text-slate-800 block mb-4">Añadir Prospecto</span>
-                <form onSubmit={handleAddLead} className="flex flex-col gap-4 text-xs font-semibold">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-gray-500">Nombre del Contacto</label>
-                    <input required type="text" placeholder="Ej. Juan Pérez" value={newLeadName} onChange={e => setNewLeadName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+            {/* ==================== 1. SUB-TAB: PIPELINE ==================== */}
+            {crmSubTab === 'pipeline' && (
+              <div className="space-y-8">
+                {/* Metric widgets */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Total Prospectos</span>
+                    <span className="text-2xl font-black text-slate-900 mt-2">{leads.length}</span>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-gray-500">Empresa / Organización</label>
-                    <input type="text" placeholder="Ej. Pérez Distribuidora" value={newLeadCompany} onChange={e => setNewLeadCompany(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Valor del Embudo (Pipeline)</span>
+                    <span className="text-2xl font-black text-primary-celeste mt-2 font-mono">
+                      ${leads.reduce((sum, l) => sum + (l.value || 0), 0).toFixed(2)}
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-gray-500">Correo Electrónico</label>
-                      <input type="email" placeholder="juan@correo.com" value={newLeadEmail} onChange={e => setNewLeadEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-gray-500">Teléfono</label>
-                      <input type="text" placeholder="+56987654321" value={newLeadPhone} onChange={e => setNewLeadPhone(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
-                    </div>
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Tratos Ganados</span>
+                    <span className="text-2xl font-black text-green-600 mt-2">
+                      {leads.filter(l => l.stage === 'won').length}
+                    </span>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-gray-500">Valor Estimado del Trato ($)</label>
-                    <input required type="number" placeholder="0.00" value={newLeadValue || ''} onChange={e => setNewLeadValue(Number(e.target.value))} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Tratos Perdidos</span>
+                    <span className="text-2xl font-black text-red-500 mt-2">
+                      {leads.filter(l => l.stage === 'lost').length}
+                    </span>
                   </div>
-                  <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
-                    <Plus className="w-4 h-4 text-primary-celeste" /> Crear Prospecto
-                  </button>
-                </form>
-              </div>
+                </div>
 
-              {/* Kanban/Embudo Pipeline view */}
-              <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
-                <span className="font-extrabold text-sm text-slate-800 block mb-4">Pipeline de Ventas</span>
-                
-                <div className="space-y-4">
-                  {leads.map((l) => (
-                    <div key={l.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-colors text-xs">
-                      <div>
-                        <h4 className="font-black text-slate-900 text-sm">{l.name}</h4>
-                        <p className="text-gray-400 mt-0.5">{l.company || 'Sin Empresa'} • {l.email || 'Sin Correo'}</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Form to add lead */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Añadir Prospecto</span>
+                    <form onSubmit={handleAddLead} className="flex flex-col gap-4 text-xs font-semibold">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Nombre del Contacto</label>
+                        <input required type="text" placeholder="Ej. Juan Pérez" value={newLeadName} onChange={e => setNewLeadName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
                       </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <span className="font-mono font-black text-slate-950">${l.value.toFixed(2)}</span>
-                        
-                        <select 
-                          value={l.stage} 
-                          onChange={(e) => handleUpdateLeadStage(l.id, e.target.value as any)}
-                          className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold"
-                        >
-                          <option value="prospect">Prospecto</option>
-                          <option value="contacted">Contactado</option>
-                          <option value="qualified">Calificado</option>
-                          <option value="proposal">Propuesta</option>
-                          <option value="won">Ganado (Won)</option>
-                          <option value="lost">Perdido (Lost)</option>
-                        </select>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Empresa / Organización</label>
+                        <input type="text" placeholder="Ej. Pérez Distribuidora" value={newLeadCompany} onChange={e => setNewLeadCompany(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Correo Electrónico</label>
+                          <input type="email" placeholder="juan@correo.com" value={newLeadEmail} onChange={e => setNewLeadEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Teléfono</label>
+                          <input type="text" placeholder="+56987654321" value={newLeadPhone} onChange={e => setNewLeadPhone(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Valor Estimado del Trato ($)</label>
+                        <input required type="number" placeholder="0.00" value={newLeadValue || ''} onChange={e => setNewLeadValue(Number(e.target.value))} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                        <Plus className="w-4 h-4 text-primary-celeste" /> Crear Prospecto
+                      </button>
+                    </form>
+                  </div>
 
-                        <button 
-                          onClick={() => handleDeleteLead(l.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                  {/* Kanban/Embudo Pipeline view */}
+                  <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Pipeline de Ventas</span>
+                    
+                    <div className="space-y-4">
+                      {leads.map((l) => (
+                        <div key={l.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl bg-slate-50/20 hover:bg-slate-50/50 transition-colors text-xs">
+                          <div>
+                            <h4 className="font-black text-slate-900 text-sm">{l.name}</h4>
+                            <p className="text-gray-400 mt-0.5">{l.company || 'Sin Empresa'} • {l.email || 'Sin Correo'}</p>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <span className="font-mono font-black text-slate-950">${l.value.toFixed(2)}</span>
+                            
+                            <select 
+                              value={l.stage} 
+                              onChange={(e) => handleUpdateLeadStage(l.id, e.target.value as any)}
+                              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold"
+                            >
+                              <option value="prospect">Prospecto</option>
+                              <option value="contacted">Contactado</option>
+                              <option value="qualified">Calificado</option>
+                              <option value="proposal">Propuesta</option>
+                              <option value="won">Ganado (Won)</option>
+                              <option value="lost">Perdido (Lost)</option>
+                            </select>
+
+                            <button 
+                              onClick={() => handleDeleteLead(l.id)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* ==================== 2. SUB-TAB: DIRECTORIO B2B ==================== */}
+            {crmSubTab === 'directory' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Formularios Directorio */}
+                <div className="flex flex-col gap-6">
+                  {/* Form Empresa */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Empresa B2B</span>
+                    <form onSubmit={handleAddCrmCompany} className="flex flex-col gap-4 text-xs font-semibold">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Nombre de la Empresa</label>
+                        <input required type="text" placeholder="Ej. Acme Corp" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Industria</label>
+                          <select value={newCompanyIndustry} onChange={e => setNewCompanyIndustry(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                            <option value="Tecnología">Tecnología</option>
+                            <option value="Manufactura">Manufactura</option>
+                            <option value="Servicios">Servicios</option>
+                            <option value="Educación">Educación</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Tamaño</label>
+                          <select value={newCompanySize} onChange={e => setNewCompanySize(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                            <option value="1-10 empleados">1-10 empleados</option>
+                            <option value="10-50 empleados">10-50 empleados</option>
+                            <option value="100-500 empleados">100-500 empleados</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Dirección</label>
+                        <input type="text" placeholder="Av. Principal 123" value={newCompanyAddress} onChange={e => setNewCompanyAddress(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                        <Plus className="w-4 h-4 text-primary-celeste" /> Guardar Empresa
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Form Contacto */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Registrar Contacto B2B</span>
+                    <form onSubmit={handleAddCrmContact} className="flex flex-col gap-4 text-xs font-semibold">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Nombre Completo</label>
+                        <input required type="text" placeholder="Ej. Juan Pérez" value={newContactName} onChange={e => setNewContactName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Correo Electrónico</label>
+                          <input required type="email" placeholder="juan@acme.com" value={newContactEmail} onChange={e => setNewContactEmail(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Teléfono</label>
+                          <input type="text" placeholder="+5691111111" value={newContactPhone} onChange={e => setNewContactPhone(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Cargo / Rol</label>
+                          <input type="text" placeholder="Gerente Compras" value={newContactRole} onChange={e => setNewContactRole(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-gray-500">Empresa Vinculada</label>
+                          <select value={newContactCompanyId} onChange={e => setNewContactCompanyId(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                            <option value="">Seleccione Empresa</option>
+                            {companies.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                        <Plus className="w-4 h-4 text-primary-celeste" /> Guardar Contacto
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {/* Directorio Lists */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Empresas registradas */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Empresas Registradas</span>
+                    <div className="space-y-4">
+                      {companies.length === 0 ? (
+                        <p className="text-xs text-slate-400">No hay empresas registradas.</p>
+                      ) : (
+                        companies.map(comp => (
+                          <div key={comp.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center text-xs">
+                            <div>
+                              <h4 className="font-bold text-slate-900">{comp.name}</h4>
+                              <p className="text-[10px] text-gray-400 mt-1">{comp.industry} • {comp.size} • {comp.address || 'Sin dirección'}</p>
+                            </div>
+                            <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-mono">ID: {comp.id.substring(0,8)}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contactos registrados */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Contactos Registrados</span>
+                    <div className="space-y-4">
+                      {contacts.length === 0 ? (
+                        <p className="text-xs text-slate-400">No hay contactos registrados.</p>
+                      ) : (
+                        contacts.map(cont => {
+                          const associatedCompany = companies.find(c => c.id === cont.companyId);
+                          return (
+                            <div key={cont.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center text-xs">
+                              <div>
+                                <h4 className="font-bold text-slate-900">{cont.name}</h4>
+                                <p className="text-[10px] text-gray-400 mt-1">{cont.role || 'Sin cargo'} • {cont.email} • {cont.phone || 'Sin teléfono'}</p>
+                                {associatedCompany && (
+                                  <span className="inline-block mt-2 px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold">
+                                    🏢 {associatedCompany.name}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-mono">ID: {cont.id.substring(0,8)}</span>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== 3. SUB-TAB: ACTIVIDADES Y CALENDARIO ==================== */}
+            {crmSubTab === 'activities' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Form Actividad */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Agendar Actividad de Venta</span>
+                  <form onSubmit={handleAddCrmActivity} className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Vincular al Trato (Lead)</label>
+                      <select required value={newActivityLeadId} onChange={e => setNewActivityLeadId(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="">Seleccione Prospecto</option>
+                        {leads.map(l => (
+                          <option key={l.id} value={l.id}>{l.name} ({l.company || 'Sin Empresa'})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Título / Tarea</label>
+                      <input required type="text" placeholder="Ej. Llamar para negociar licencias" value={newActivityTitle} onChange={e => setNewActivityTitle(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Tipo de Actividad</label>
+                        <select value={newActivityType} onChange={e => setNewActivityType(e.target.value as any)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                          <option value="call">📞 Llamada</option>
+                          <option value="meeting">🤝 Reunión</option>
+                          <option value="email">📧 Correo</option>
+                          <option value="task">📋 Tarea</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Fecha de Agenda</label>
+                        <input required type="date" value={newActivityDate} onChange={e => setNewActivityDate(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Notas Adicionales</label>
+                      <textarea placeholder="Ej. El cliente se muestra interesado..." value={newActivityNotes} onChange={e => setNewActivityNotes(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl h-16" />
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4 text-primary-celeste" /> Agendar Actividad
+                    </button>
+                  </form>
+                </div>
+
+                {/* Agenda y Calendario */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Calendario Simulativo */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Calendario de Ventas (Junio 2026)</span>
+                    <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-500 mb-2">
+                      <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-2">
+                      {/* June 2026 starts on Monday (1) */}
+                      <div className="p-3 border border-slate-50 text-slate-200">31</div>
+                      {Array.from({ length: 30 }).map((_, idx) => {
+                        const dayNum = idx + 1;
+                        const dayString = `2026-06-${dayNum < 10 ? '0' + dayNum : dayNum}`;
+                        const dayActs = activities.filter(a => a.date === dayString);
+                        const hasActs = dayActs.length > 0;
+                        return (
+                          <div 
+                            key={dayNum} 
+                            className={`p-3 border border-slate-100 rounded-xl flex flex-col justify-between items-center min-h-[60px] cursor-pointer hover:bg-slate-50 transition-colors ${hasActs ? 'border-primary-celeste bg-cyan-50/10' : ''}`}
+                            onClick={() => {
+                              if (hasActs) {
+                                alert(`Actividades del día:\n${dayActs.map(a => `• [${a.type.toUpperCase()}] ${a.title}`).join('\n')}`);
+                              } else {
+                                alert('No hay actividades agendadas para este día.');
+                              }
+                            }}
+                          >
+                            <span className={`font-mono font-bold text-xs ${hasActs ? 'text-primary-celeste' : 'text-slate-800'}`}>{dayNum}</span>
+                            {hasActs && (
+                              <span className="w-2 h-2 rounded-full bg-primary-celeste block" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Listado de Actividades */}
+                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="font-extrabold text-sm text-slate-800 block mb-4">Próximas Tareas y Reuniones</span>
+                    <div className="space-y-4">
+                      {activities.length === 0 ? (
+                        <p className="text-xs text-slate-400">No hay actividades agendadas.</p>
+                      ) : (
+                        activities.map(act => {
+                          const matchedLead = leads.find(l => l.id === act.leadId);
+                          return (
+                            <div key={act.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center text-xs">
+                              <div>
+                                <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>{act.type === 'call' ? '📞' : act.type === 'meeting' ? '🤝' : act.type === 'email' ? '📧' : '📋'}</span>
+                                  {act.title}
+                                </h4>
+                                <p className="text-[10px] text-gray-400 mt-1">Fecha: {act.date} • Notas: {act.notes || 'Ninguna'}</p>
+                                {matchedLead && (
+                                  <span className="inline-block mt-2 px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px]">
+                                    Lead: {matchedLead.name} ({matchedLead.company || 'Sin Empresa'})
+                                  </span>
+                                )}
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  const updated = activities.filter(a => a.id !== act.id);
+                                  dbAdapter.saveCrmActivities(tenant?.id || '', updated);
+                                  reloadAllData();
+                                }}
+                                className="p-1 hover:bg-red-50 text-red-500 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== 4. SUB-TAB: COTIZACIONES ==================== */}
+            {crmSubTab === 'quotes' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Form Cotización */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Nueva Cotización B2B</span>
+                  <form onSubmit={handleAddCrmQuote} className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Vincular al Trato (Lead)</label>
+                      <select required value={newQuoteLeadId} onChange={e => setNewQuoteLeadId(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="">Seleccione Prospecto</option>
+                        {leads.map(l => (
+                          <option key={l.id} value={l.id}>{l.name} ({l.company || 'Sin Empresa'})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Producto del Catálogo</label>
+                      <select required value={newQuoteProductId} onChange={e => setNewQuoteProductId(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <option value="">Seleccione Artículo</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name} - ${p.price.toFixed(2)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Cantidad</label>
+                        <input required type="number" min="1" value={newQuoteQty} onChange={e => setNewQuoteQty(parseInt(e.target.value) || 1)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-gray-500">Vencimiento Oferta</label>
+                        <input required type="date" value={newQuoteValidUntil} onChange={e => setNewQuoteValidUntil(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono" />
+                      </div>
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4 text-primary-celeste" /> Crear Cotización
+                    </button>
+                  </form>
+                </div>
+
+                {/* Listado de Cotizaciones */}
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Historial de Cotizaciones Emitidas</span>
+                  <div className="space-y-4">
+                    {quotes.length === 0 ? (
+                      <p className="text-xs text-slate-400">No se han emitido cotizaciones aún.</p>
+                    ) : (
+                      quotes.map(qte => {
+                        const matchedLead = leads.find(l => l.id === qte.leadId);
+                        const items = JSON.parse(qte.itemsJson || '[]');
+                        return (
+                          <div key={qte.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex flex-col gap-3 text-xs">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-slate-800">COTIZACIÓN REF: {qte.id.substring(0,10)}</h4>
+                                <span className="text-[10px] text-gray-400">Válida hasta: {qte.validUntil}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-mono font-black text-slate-950 block">${qte.total.toFixed(2)}</span>
+                                <span className="bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded text-[8px] font-black uppercase">Enviada</span>
+                              </div>
+                            </div>
+                            <div className="border-t border-slate-100 pt-3">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase">Resumen de Propuesta B2B:</span>
+                              <div className="space-y-1.5 mt-1.5 text-slate-500 font-semibold">
+                                {items.map((it: any) => (
+                                  <div key={it.id} className="flex justify-between">
+                                    <span>{it.name} (x{it.qty})</span>
+                                    <span>${(it.price * it.qty).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {matchedLead && (
+                                <div className="mt-3 flex justify-between items-center text-[10px] text-gray-400 border-t border-slate-100/50 pt-2">
+                                  <span>Destinatario: {matchedLead.name} ({matchedLead.company || 'Sin Empresa'})</span>
+                                  <button 
+                                    onClick={() => alert(`Imprimiendo cotización en formato PDF...\n${matchedLead.name} - Total: $${qte.total}`)}
+                                    className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded"
+                                  >
+                                    Imprimir PDF
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== 5. SUB-TAB: FORECAST ==================== */}
+            {crmSubTab === 'forecast' && (
+              <div className="space-y-8">
+                {/* Forecast metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Ingresos Proyectados (Forecast Ponderado)</span>
+                    <span className="text-2xl font-black text-primary-celeste block mt-2 font-mono">
+                      ${calculateWeightedForecast(leads).toFixed(2)}
+                    </span>
+                    <p className="text-[9px] text-gray-400 mt-2">Valor ajustado según la probabilidad de éxito de cada etapa comercial.</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Tasa de Conversión del Embudo</span>
+                    <span className="text-2xl font-black text-green-600 block mt-2">
+                      {calculateConversionRate(leads).toFixed(1)}%
+                    </span>
+                    <p className="text-[9px] text-gray-400 mt-2">Porcentaje de tratos cerrados como ganados sobre el total histórico.</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-md">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Cuota Comercial del Mes</span>
+                    <span className="text-2xl font-black text-slate-800 block mt-2 font-mono">
+                      $15000.00
+                    </span>
+                    <p className="text-[9px] text-gray-400 mt-2">Meta de facturación asignada a la organización para el ciclo activo.</p>
+                  </div>
+                </div>
+
+                {/* Cuadros comparativos del pipeline */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Probabilidad Estimada por Etapa</span>
+                  <div className="space-y-4 text-xs font-semibold">
+                    {[
+                      { key: 'prospect', label: 'Prospecto', prob: '10%' },
+                      { key: 'contacted', label: 'Contactado', prob: '30%' },
+                      { key: 'qualified', label: 'Calificado', prob: '50%' },
+                      { key: 'proposal', label: 'Propuesta comercial', prob: '75%' },
+                      { key: 'won', label: 'Ganado (Cerrado)', prob: '100%' }
+                    ].map(stage => {
+                      const stageLeads = leads.filter(l => l.stage === stage.key);
+                      const totalVal = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+                      return (
+                        <div key={stage.key} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex justify-between items-center">
+                          <div>
+                            <span className="font-black text-slate-800 block">{stage.label}</span>
+                            <span className="text-[10px] text-gray-400">Probabilidad: {stage.prob} • {stageLeads.length} tratos</span>
+                          </div>
+                          <span className="font-mono font-bold text-slate-900">${totalVal.toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== 6. SUB-TAB: CAMPAÑAS ==================== */}
+            {crmSubTab === 'campaigns' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Form Campaña */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-md h-fit">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Nueva Campaña de Email</span>
+                  <form onSubmit={handleAddCrmCampaign} className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Nombre de la Campaña</label>
+                      <input required type="text" placeholder="Ej. Cyber Monday 2026" value={newCampaignName} onChange={e => setNewCampaignName(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-gray-500">Asunto del Correo (Subject)</label>
+                      <input required type="text" placeholder="Ej. ¡Hasta 50% de descuento en ERP!" value={newCampaignSubject} onChange={e => setNewCampaignSubject(e.target.value)} className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl" />
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold mt-2 shadow flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4 text-primary-celeste" /> Crear Campaña
+                    </button>
+                  </form>
+                </div>
+
+                {/* Listado Campañas */}
+                <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-md">
+                  <span className="font-extrabold text-sm text-slate-800 block mb-4">Campañas Emitidas y Analíticas</span>
+                  <div className="space-y-6">
+                    {campaigns.length === 0 ? (
+                      <p className="text-xs text-slate-400">No hay campañas creadas.</p>
+                    ) : (
+                      campaigns.map(camp => {
+                        const metrics = calculateCampaignMetrics(camp.sentCount, camp.opensCount, camp.clicksCount);
+                        return (
+                          <div key={camp.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 flex flex-col gap-3 text-xs">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-slate-800">{camp.name}</h4>
+                                <p className="text-[10px] text-gray-400">Asunto: {camp.subject}</p>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${camp.status === 'sent' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                {camp.status === 'sent' ? 'Enviada' : 'Borrador'}
+                              </span>
+                            </div>
+                            {camp.status === 'sent' ? (
+                              <div className="grid grid-cols-3 gap-4 border-t border-slate-100 pt-3 text-center">
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 block uppercase">Envíos</span>
+                                  <span className="font-mono font-black text-slate-900 block mt-1">{camp.sentCount}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 block uppercase">Aperturas</span>
+                                  <span className="font-mono font-black text-slate-900 block mt-1">
+                                    {metrics.openRate.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 block uppercase">Clics (CTR)</span>
+                                  <span className="font-mono font-black text-slate-900 block mt-1">
+                                    {metrics.ctr.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="border-t border-slate-100 pt-3 text-right">
+                                <button 
+                                  onClick={() => handleSendCrmCampaign(camp.id)}
+                                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-950 text-white rounded-lg font-bold text-[10px]"
+                                >
+                                  Lanzar Campaña
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
