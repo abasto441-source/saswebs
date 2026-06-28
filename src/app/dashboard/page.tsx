@@ -222,7 +222,7 @@ export default function DashboardPage() {
 
   // ==================== CONTABILIDAD PRO STATES ====================
   const [accountingSubTab, setAccountingSubTab] = useState<'balances' | 'reconciliation' | 'budgets' | 'fixed_assets' | 'invoicing'>('balances');
-  const [selectedCountryTax, setSelectedCountryTax] = useState<'CL' | 'MX' | 'CO' | 'PE'>('CL');
+  const [selectedCountryTax, setSelectedCountryTax] = useState<'CL' | 'MX' | 'CO' | 'PE' | 'BO'>('CL');
   const [fixedAssets, setFixedAssets] = useState<any[]>([]);
   const [budgetLimits, setBudgetLimits] = useState<any[]>([]);
   const [bankStatementLines, setBankStatementLines] = useState<any[]>([]);
@@ -1218,7 +1218,7 @@ export default function DashboardPage() {
       xml += `      </cac:TaxCategory>\n`;
       xml += `    </cac:TaxSubtotal>\n`;
       xml += `  </cac:TaxTotal>\n`;
-    } else {
+    } else if (selectedCountryTax === 'PE') {
       xml += `  <!-- Especificaciones SUNAT de Perú (UBL SUNAT 2.1) -->\n`;
       xml += `  <cbc:DocumentCurrencyCode>PEN</cbc:DocumentCurrencyCode>\n`;
       xml += `  <cac:TaxTotal>\n`;
@@ -1228,6 +1228,19 @@ export default function DashboardPage() {
       xml += `      <cbc:TaxAmount currencyID="PEN">180</cbc:TaxAmount>\n`;
       xml += `      <cac:TaxCategory>\n`;
       xml += `        <cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name></cac:TaxScheme>\n`;
+      xml += `      </cac:TaxCategory>\n`;
+      xml += `    </cac:TaxSubtotal>\n`;
+      xml += `  </cac:TaxTotal>\n`;
+    } else {
+      xml += `  <!-- Especificaciones SIN de Bolivia (Documento Fiscal XML Ley) -->\n`;
+      xml += `  <cbc:DocumentCurrencyCode>BOB</cbc:DocumentCurrencyCode>\n`;
+      xml += `  <cac:TaxTotal>\n`;
+      xml += `    <cbc:TaxAmount currencyID="BOB">13000</cbc:TaxAmount>\n`;
+      xml += `    <cac:TaxSubtotal>\n`;
+      xml += `      <cbc:TaxableAmount currencyID="BOB">100000</cbc:TaxableAmount>\n`;
+      xml += `      <cbc:TaxAmount currencyID="BOB">13000</cbc:TaxAmount>\n`;
+      xml += `      <cac:TaxCategory>\n`;
+      xml += `        <cac:TaxScheme><cbc:ID>IVA</cbc:ID></cac:TaxScheme>\n`;
       xml += `      </cac:TaxCategory>\n`;
       xml += `    </cac:TaxSubtotal>\n`;
       xml += `  </cac:TaxTotal>\n`;
@@ -4273,6 +4286,7 @@ export default function DashboardPage() {
                         <option value="MX">México (SAT CFDI 4.0 - IVA 16%)</option>
                         <option value="CO">Colombia (DIAN - IVA 19%)</option>
                         <option value="PE">Perú (SUNAT - IGV 18%)</option>
+                        <option value="BO">Bolivia (SIN - IVA 13%)</option>
                       </select>
                     </div>
                     <div className="p-4 border border-slate-100 bg-slate-50/20 rounded-xl space-y-2">
@@ -4283,13 +4297,13 @@ export default function DashboardPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Tasa Impuesto:</span>
                         <span className="font-mono font-bold">
-                          {selectedCountryTax === 'CL' ? '19% (IVA)' : selectedCountryTax === 'MX' ? '16% (IVA)' : selectedCountryTax === 'CO' ? '19% (IVA)' : '18% (IGV)'}
+                          {selectedCountryTax === 'CL' ? '19% (IVA)' : selectedCountryTax === 'MX' ? '16% (IVA)' : selectedCountryTax === 'CO' ? '19% (IVA)' : selectedCountryTax === 'PE' ? '18% (IGV)' : '13% (IVA)'}
                         </span>
                       </div>
                       <div className="flex justify-between border-t border-slate-100 pt-2 font-black text-slate-900">
                         <span>Total Documento:</span>
                         <span className="font-mono">
-                          {selectedCountryTax === 'CL' ? '$119.00' : selectedCountryTax === 'MX' ? '$116.00' : selectedCountryTax === 'CO' ? '$119.00' : '$118.00'}
+                          {selectedCountryTax === 'CL' ? '$119.00' : selectedCountryTax === 'MX' ? '$116.00' : selectedCountryTax === 'CO' ? '$119.00' : selectedCountryTax === 'PE' ? '$118.00' : '$113.00'}
                         </span>
                       </div>
                     </div>
@@ -4322,7 +4336,7 @@ export default function DashboardPage() {
          xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
   <cbc:ID>FAC-${100000 + i}</cbc:ID>
-  <cbc:DocumentCurrencyCode>${selectedCountryTax === 'CL' ? 'CLP' : selectedCountryTax === 'MX' ? 'MXN' : selectedCountryTax === 'CO' ? 'COP' : 'PEN'}</cbc:DocumentCurrencyCode>
+  <cbc:DocumentCurrencyCode>${selectedCountryTax === 'CL' ? 'CLP' : selectedCountryTax === 'MX' ? 'MXN' : selectedCountryTax === 'CO' ? 'COP' : selectedCountryTax === 'PE' ? 'PEN' : 'BOB'}</cbc:DocumentCurrencyCode>
   <cac:Signature>
     <cbc:ID>Sign-FAC-${100000 + i}</cbc:ID>
     <cac:DigitalSignature>
