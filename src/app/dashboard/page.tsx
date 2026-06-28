@@ -273,6 +273,11 @@ export default function DashboardPage() {
   const [newCampaignName, setNewCampaignName] = useState('');
   const [newCampaignSubject, setNewCampaignSubject] = useState('');
 
+  // WhatsApp Form
+  const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
+  const [waSelectedLeadId, setWaSelectedLeadId] = useState('');
+  const [waNewMessage, setWaNewMessage] = useState('');
+
   // Fixed Asset Form
   const [newAssetName, setNewAssetName] = useState('');
   const [newAssetValue, setNewAssetValue] = useState(0);
@@ -358,6 +363,7 @@ export default function DashboardPage() {
     setActivities(dbAdapter.getCrmActivities(active.id));
     setQuotes(dbAdapter.getCrmQuotes(active.id));
     setCampaigns(dbAdapter.getCrmCampaigns(active.id));
+    setWhatsappMessages(dbAdapter.getCrmWhatsAppMessages(active.id));
   };
 
   useEffect(() => {
@@ -4812,6 +4818,12 @@ export default function DashboardPage() {
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${crmSubTab === 'campaigns' ? 'bg-slate-900 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
               >
                 📧 Campañas de Email Marketing
+              </button>
+              <button 
+                onClick={() => setCrmSubTab('whatsapp' as any)}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${(crmSubTab as any) === 'whatsapp' ? 'bg-green-600 text-white shadow-md' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'}`}
+              >
+                💬 WhatsApp Business
               </button>
             </div>
 

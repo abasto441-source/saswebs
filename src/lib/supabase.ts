@@ -383,6 +383,16 @@ export interface CrmCampaign {
   status: 'draft' | 'sent';
 }
 
+export interface CrmWhatsAppMessage {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  direction: 'outbound' | 'inbound';
+  message: string;
+  timestamp: string;
+  status: 'sent' | 'delivered' | 'read';
+}
+
 export interface ResellerPartner {
   id: string;
   name: string;
@@ -1515,6 +1525,21 @@ class SupabaseMock {
     const all = this.getStorage('mock_crm_campaigns', []);
     const filtered = all.filter((c: any) => c.tenantId !== tenantId);
     this.setStorage('mock_crm_campaigns', [...filtered, ...campaigns]);
+  }
+
+  getCrmWhatsAppMessages(tenantId: string): CrmWhatsAppMessage[] {
+    const all = this.getStorage('mock_crm_whatsapp', [
+      { id: 'wa-1', tenantId, leadId: 'lead-1', direction: 'outbound' as const, message: 'Hola! Gracias por su interés en nuestros servicios. ¿Cuándo podríamos agendar una llamada?', timestamp: '2026-06-27T09:00:00Z', status: 'read' as const },
+      { id: 'wa-2', tenantId, leadId: 'lead-1', direction: 'inbound' as const, message: 'Buenos días! Me interesa el plan empresarial. Esta semana estoy disponible.', timestamp: '2026-06-27T09:15:00Z', status: 'read' as const },
+      { id: 'wa-3', tenantId, leadId: 'lead-1', direction: 'outbound' as const, message: 'Perfecto, le envío la cotización ahora mismo 📄', timestamp: '2026-06-27T09:20:00Z', status: 'delivered' as const }
+    ]);
+    return all.filter((m: any) => m.tenantId === tenantId);
+  }
+
+  saveCrmWhatsAppMessages(tenantId: string, messages: CrmWhatsAppMessage[]) {
+    const all = this.getStorage('mock_crm_whatsapp', []);
+    const filtered = all.filter((m: any) => m.tenantId !== tenantId);
+    this.setStorage('mock_crm_whatsapp', [...filtered, ...messages]);
   }
 }
 
